@@ -216,10 +216,11 @@ git_list() {
 }
 
 
-## Запукс процедуры git pull
+## Запуск процедуры git pull
 git_pull() {
-    if [[ "$git_pull_master_allow" != "y" && ("main" == "$1" || "master" == "$1") ]]; then
-        echo -e "master ветку запрещено автоматически обновлять"
+    if [[ "$git_pull_master_allow" != "y" && $git_branch_master_name == "$1" ]]; then
+        echo -e "$git_branch_master_name ветку запрещено автоматически обновлять"
+        wait
         return 0
     fi
 
