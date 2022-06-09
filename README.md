@@ -1,4 +1,6 @@
 # bitrix.devops
+Работает только с Bitrixenv
+
 Установка
 ```
 wget https://raw.githubusercontent.com/william-aqn/bitrix.devops/main/dev.sh && chmod +x dev.sh && ./dev.sh
