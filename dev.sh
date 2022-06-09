@@ -206,7 +206,7 @@ git_pull_one() {
 
 ## Список существующих гитов/веток
 git_list() {
-    for dir in $(find $bitrix_home_dir -maxdepth 2 -type d -name ".git")
+    for dir in $(find $bitrix_home_dir -maxdepth 3 -type d -name ".git")
         do cd "${dir%/*}" || exit
             current_branch_name=$(git symbolic-ref --short -q HEAD)
             echo -e "Директория: $PWD; Ветка: $current_branch_name;"
@@ -224,7 +224,7 @@ git_pull() {
     fi
 
     echo -e "Пробуем найти ветку $1 в $bitrix_home_dir"
-    for dir in $(find $bitrix_home_dir -maxdepth 2 -type d -name ".git")
+    for dir in $(find $bitrix_home_dir -maxdepth 3 -type d -name ".git")
         do cd "${dir%/*}" || exit
             current_branch_name=$(git symbolic-ref --short -q HEAD)
             if [[ "$current_branch_name" == "$1" ]]; then
@@ -428,7 +428,7 @@ menu() {
 
 header() {
     clear
-    echo -e "Bitrix.DevOps" "$version" "(c)"
+    echo -e "Bitrix.DevOps" "$version" "(c)DCRM"
     ## Сразу проверим ip
     check_ip
     ## Информация о репозитории
