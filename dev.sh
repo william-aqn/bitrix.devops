@@ -3,6 +3,9 @@
 ## Проверено на bitrixenv 7.5.2
 version=1.0
 
+## Группа пользователей для разработчиков
+user_group=dev-group
+
 ## Путь к файлу конфигурации
 config_file=/home/bitrix/.dev.cnf
 
@@ -30,6 +33,22 @@ is_root() {
     fi
 }
 
+## Пауза
+wait() {
+    read -t 3 -r > /dev/null
+}
+
+# Заглушка
+no_menu() {
+    echo -e ""
+}
+
+# Линия
+line() {
+    printf "\x2d%.0s"  $(seq 1 85)
+    printf "\n"
+}
+
 ## Устанавливаем битрикс окружение
 install_bitrixenv() {
     echo "Bitrixenv не обнаружен, устанавливаем..."
@@ -37,40 +56,6 @@ install_bitrixenv() {
     yum install -y wget
     wget -O bitrix-env.sh https://repo.bitrix.info/yum/bitrix-env.sh && chmod +x bitrix-env.sh && ./bitrix-env.sh
     exit
-}
-
-## Запустить bitrixenv
-start_bitrixenv() {
-    exec /root/menu.sh
-}
-
-## Устанавливаем себя
-install_self() {
-    if [[ "$self_file" != "$global_file" ]]; then
-        rm "$global_file"
-        cp "$self_file" "$global_file"
-        chmod +x "$global_file"
-        chown bitrix:bitrix "$global_file"
-        echo -e "Файл $self_file установлен в $global_file"
-    else
-        echo -e "Файл не может установиться сам в себя"
-    fi
-}
-
-## Обновим сами себя и перезапустим
-update_self() {
-    wget -O "$global_file" "$update_url" && chmod +x "$global_file" && bitrix:bitrix "$global_file"
-    echo -e "$global_file - обновлён"
-    wait
-    exec $global_file
-}
-
-check_size() {
-    local used=$( df -h / --output=pcent | awk 'END{ print $(NF-1) }' | tr -d '%' )
-    local free=$((100 - used))
-    if [[ free -lt $1 ]]; then
-        echo -e "Мало свободного места - $free%"
-    fi
 }
 
 ## Проверяем команду arg1 на существование
@@ -101,19 +86,6 @@ init_bitrixenv() {
 }
 init_bitrixenv
 
-## Хелпер гита для авторизации
-git_get_credential_helper() {
-    printf -v HELPER "!f() { cat >/dev/null; echo 'username=%s'; echo 'password=%s'; }; f" "$git_user" "$git_pass"
-}
-
-## Вернёт errlvl 0 - если гит доступен 
-git_remote_url_reachable() {
-    git_get_credential_helper
-    git -c credential.helper="$HELPER" ls-remote "$1" CHECK_GIT_REMOTE_URL_REACHABILITY >/dev/null 2>&1
-}
-
-
-
 ## Текущий глобальный IP
 init_global_ip() {
     global_ip=$(dig @resolver4.opendns.com myip.opendns.com +short -4)
@@ -133,6 +105,215 @@ check_ip() {
     fi
 }
 
+## Проверить dns A поддомена
+check_dns_a_record() {
+    dig "$1" A +short
+}
+
+## Проверить dns A поддомена (ручной ввод)
+check_dns_a_record_one() {
+    local user=""
+    until [[ "$user" ]]; do
+        IFS= read -p "Какой поддомен.$domain_name проверить?: " -r user
+    done
+    local check=$(check_dns_a_record "$user.$domain_name")
+    if [[ $check != "" ]]; then
+        echo -e "A: $check"
+    else
+        echo -e "'A' Запись не установлена у $user.$domain_name"
+    fi
+}
+
+## Запустить bitrixenv
+start_bitrixenv() {
+    exec /root/menu.sh
+}
+
+## Получить статус задания bitrixenv по id
+get_task_status() {
+    /opt/webdir/bin/bx-process -a status -t "$1" | cut -d':' -f 7
+}
+
+## Получить id задания bitrixenv
+get_task_id() {
+    ## info:bxDaemon:site_create_0646371381:2934:1654865708::running:::
+    echo "$1" | cut -d':' -f 3
+}
+
+## Ждём выполнение задания bitrixenv по id
+wait_task(){
+    local task_status=""
+    until [[ "$task_status" == "finished" ]]; do
+        task_status=$(get_task_status "$1")
+        echo "$task_status; "
+        sleep 1
+    done
+}
+
+## Получить случайную строку
+get_random_string(){
+    date +%s | sha256sum | base64 | head -c 12 ; echo
+}
+
+## Установить случайный пароль для пользователя
+set_user_random_password() {
+    user_pswd=$(get_random_string)
+    echo "$1:$user_pswd" | chpasswd
+    echo -e "Для $1 установлен пароль: $user_pswd"
+}
+
+## Проверим наличие группы для разработчиков
+init_user_group() {
+    if ! grep -q $user_group /etc/group; then
+        groupadd $user_group
+        echo "Группа $user_group создана"
+    fi
+}
+init_user_group
+
+## Проверим настройки sshd
+check_openssh_chroot(){
+    if ! grep -q -F "$user_group" /etc/ssh/sshd_config; then
+        echo "Необходимо внести правки в файл /etc/ssh/sshd_config"
+        echo "Subsystem sftp internal-sftp"
+        echo "Match Group $user_group"
+        echo "ChrootDirectory /home/%u"
+        line
+    fi   
+}
+
+## Добавляем точку монтирования для пользователя в его домашний каталог
+add_mount_point() {
+    if ! grep -q "/home/$1/www" /etc/fstab; then
+        {
+            printf '\n# dev.sh %s start' "$1";
+            printf '\n/home/bitrix/ext_www/%s /home/%s/www none bind 0 0' "$1.$domain_name" "$1";
+            printf '\n# dev.sh %s end' "$1";
+            printf '\n'; ## Важно!
+        } >> /etc/fstab
+    fi
+}
+
+
+## Создаём сайт
+create_kernel_site() {
+    ## Проверяем наличие сайта
+    if [ -d /home/bitrix/ext_www/"$1.$domain_name" ]; then
+        override_site=""
+        until [[ "$override_site" ]]; do
+            IFS= read -p "Пересоздать сайт $1.$domain_name? [y/N]: " -r override_site
+        done
+        if [[ $override_site != "y" ]]; then
+            echo -e "Создание сайта $1.$domain_name отменено"
+            return 0
+        fi
+        local task_del=$(/opt/webdir/bin/bx-sites -a delete -r /home/bitrix/ext_www/"$1"."$domain_name" -s "$1"."$domain_name")
+        local task_del_id=$(get_task_id "$task_del")
+        echo -e "Задание $task_del_id для удаления сайта $1.$domain_name - запущено, ждём"
+        wait_task "$task_del_id"
+    fi
+
+    ## TODO: /opt/webdir/bin/bx-sites -a create -s test3.local -t link --kernel_site test1.local --kernel_root /home/bitrix/ext_www/test1.local
+    local task=$(/opt/webdir/bin/bx-sites -a create -s "$1"."$domain_name" -t kernel --charset UTF-8 --cron)
+    local task_id=$(get_task_id "$task")
+    echo -e "Задание $task_id для создания сайта $1.$domain_name - запущено, ждём"
+    wait_task "$task_id"
+
+    ## TODO:
+    ## Копируем сайт+БД
+
+    ## Создаём гит+ветку
+    git_new_dir="/home/bitrix/ext_www/$1.$domain_name"
+    git_new_branch="$1"
+    git_new_dir_override="y"
+    git_new_branch_create="y"
+    git_init
+
+    ## Создаём пользователя
+    create_user "$1"
+
+    ## Суммарная информация
+    clear
+    printf -v report 'Репозиторий: %s\nДомен: %s\nIP: %s\nSFTP пользователь/гит-ветка: %s\nSFTP пароль: %s' "$git_url" "$1.$domain_name" "$current_ip" "$1" "$user_pswd"
+    echo "$report" > "/root/.dev.$1.info"
+    echo -e "Данные сохранены в файл /root/.dev.$1.info"
+    echo -e "$report"
+    wait
+}
+
+## Создаём сайт (ручной ввод)
+create_site() {
+    local user_name=""
+    until [[ "$user_name" ]]; do
+        IFS= read -p "Введите имя пользователя который будет одноимённым с веткой гита и поддоменом.$domain_name: " -r user_name
+    done
+    create_kernel_site "$user_name"
+}
+
+## Создаём пользователя, обновляем пароль
+create_user() {
+    if id "$1" &>/dev/null; then
+        echo -e "Пользователь $1 существует"
+        local override_pwd="y" ## TODO:?
+        until [[ "$override_pwd" ]]; do
+            IFS= read -p "Пересоздать пароль у пользователя $1? [y/N]: " -r override_pwd
+        done
+        if [[ $override_pwd == "y" ]]; then
+            set_user_random_password "$1"
+        fi
+    else
+        ## такой же id как у bitrix пользователя
+        adduser "$1" -g600 -o -u600 -s /sbin/nologin -d /home/"$1"/
+        usermod -aG $user_group "$1"
+        chown root:bitrix /home/"$1"/
+        chmod 750 /home/"$1"/
+        set_user_random_password "$1"
+        add_mount_point "$1"
+        ## Разово монтируем каталог, что бы не перезагружать сервер
+        mount --bind /home/bitrix/ext_www/"$1.$domain_name" /home/"$1"/www
+    fi
+}
+
+## Устанавливаем себя
+install_self() {
+    if [[ "$self_file" != "$global_file" ]]; then
+        rm "$global_file"
+        cp "$self_file" "$global_file"
+        chmod +x "$global_file"
+        chown bitrix:bitrix "$global_file"
+        echo -e "Файл $self_file установлен в $global_file"
+    else
+        echo -e "Файл не может установиться сам в себя"
+    fi
+}
+
+## Обновим сами себя и перезапустим
+update_self() {
+    wget -O "$global_file" "$update_url" && chmod +x "$global_file" && bitrix:bitrix "$global_file"
+    echo -e "$global_file - обновлён"
+    wait
+    exec $global_file
+}
+
+## Проверяем свободное место
+check_size() {
+    local used=$( df -h / --output=pcent | awk 'END{ print $(NF-1) }' | tr -d '%' )
+    local free=$((100 - used))
+    if [[ free -lt $1 ]]; then
+        echo -e "Мало свободного места - $free%"
+    fi
+}
+
+## Хелпер гита для авторизации
+git_get_credential_helper() {
+    printf -v HELPER "!f() { cat >/dev/null; echo 'username=%s'; echo 'password=%s'; }; f" "$git_user" "$git_pass"
+}
+
+## Вернёт errlvl 0 - если гит доступен 
+git_remote_url_reachable() {
+    git_get_credential_helper
+    git -c credential.helper="$HELPER" ls-remote "$1" CHECK_GIT_REMOTE_URL_REACHABILITY >/dev/null 2>&1
+}
 
 ## Сохраняем конфиг
 save_config() {
@@ -143,6 +324,7 @@ save_config() {
         printf 'git_branch_master_name=%s\n' "${git_branch_master_name}";
         printf 'git_pull_master_allow=%s\n' "${git_pull_master_allow}";
         printf 'bitrix_home_dir=%s\n' "${bitrix_home_dir}";
+        printf 'domain_name=%s\n' "${domain_name}";
     } > $config_file
     ## Обновляем права на файлы
     chown bitrix:bitrix $config_file
@@ -210,6 +392,11 @@ first_run() {
         IFS= read -p "Разрешить pull у $git_branch_master_name ветки? (y/N): " -r git_pull_master_allow
     done
 
+    until [[ "$domain_name" ]]; do
+        IFS= read -p "Основной домен (без http(s), например yandex.ru): " -r domain_name
+        domain_name=$(sed -E -e 's_.*://([^/@]*@)?([^/:]+).*_\2_' <<< "$domain_name")
+    done
+    
     ## Сохраняем настройки
     save_config
 
@@ -232,12 +419,30 @@ git_pull_one() {
 
 ## Список существующих гитов/веток
 git_list() {
+    line
+    local result=""
+    ## Заголовок таблицы
+    printf -v result '%s\t%s\t%s\n' "Ветка" "Директория" "DNS"
     for dir in $(find $bitrix_home_dir -maxdepth 3 -type d -name ".git")
         do cd "${dir%/*}" || exit
             current_branch_name=$(git symbolic-ref --short -q HEAD)
-            echo -e "Директория: $PWD; Ветка: $current_branch_name;"
+            
+            ## Проверяем наличие A записи у доменов
+            local dns=""
+            if [[ $1 == "dns" ]]; then
+                local domain=$(pwd | sed 's#.*/##')""
+                ## Переопределяем для основного домена
+                if [[ $domain == "www" ]]; then
+                    domain="$domain_name"
+                fi
+                dns="$domain A: $(check_dns_a_record "$domain")"
+            fi
+            ## Ячейка таблицы
+            printf -v result "%s%s\t%s\t%s\n" "$result" "$current_branch_name" "$PWD" "$dns"
             cd - > /dev/null || exit
         done
+    ## Строим таблицу
+    echo "$result" | sed 's/\t/,|,/g' | column -s ',' -t
     cd "$HOME" || exit
 }
 
@@ -309,12 +514,17 @@ git_branch_list() {
     git -c credential.helper="$HELPER" ls-remote --exit-code --heads "$git_url"
 }
 
-## Инициализация репозитория
-git_init() {
+## Запуск создания нового .git
+git_init_one() {
     git_new_dir=""
     git_new_branch=""
     git_new_dir_override=""
     git_new_branch_create=""
+    git_init
+}
+
+## Инициализация репозитория
+git_init() {
     until [[ "$git_new_dir" ]]; do
         IFS= read -p "Директория для создания гита: " -r git_new_dir
         if [[ ! -d $git_new_dir ]]; then
@@ -396,23 +606,6 @@ git_init() {
     git status
     echo -e "Текущие ветки:"
     git branch -a
-    wait
-}
-
-## Пауза
-wait() {
-    read -t 3 -r > /dev/null
-}
-
-# Заглушка
-no_menu() {
-    echo -e ""
-}
-
-# Линия
-line() {
-    printf "\x2d%.0s"  $(seq 1 85)
-    printf "\n"
 }
 
 # Меню не root пользователя
@@ -440,6 +633,8 @@ menu() {
 
         echo -e "\t\t1. git pull (существующей ветки)"
         echo -e "\t\t3. git init (задать директорию)"
+        echo -e "\t\t6. Создать пользователя=гитветку=поддомен"
+        echo -e "\t\t7. Проверить наличие DNS A записи у поддомена"
         echo -e "\t\t10. Переустановить конфигурацию репозитория"
         echo -e "\t\t11. Обновить скрипт из гита"
         echo -e "\t\t12. Установить текущий скрипт"
@@ -448,9 +643,11 @@ menu() {
 
         IFS= read -p "Пункт меню: " -r TARGET_SELECTION
         case "$TARGET_SELECTION" in 
-            "1"|pull)  git_pull_one;;
-            "3"|init)  git_init;;
-            "10"|clear) clear_config; first_run;;
+            "1"|pull)  git_pull_one; wait;;
+            "3"|init)  git_init_one; wait;;
+            "6"|site)  create_site; wait;;
+            "7"|dns)  check_dns_a_record_one; wait;;
+            "10"|clear) clear_config; first_run; wait;;
             "11"|install) update_self; wait;;
             "12"|update) install_self; wait;;
             "20"|env) start_bitrixenv; exit;;
@@ -464,13 +661,17 @@ menu() {
 header() {
     clear
     echo -e "Bitrix.DevOps" "$version" "(c)DCRM"
+    ## Проверяем настройки sfto
+    check_openssh_chroot
     ## Проверим свободное место
     check_size 10
     ## Сразу проверим ip
     check_ip
+    ## Информация о домене
+    echo -e "Домен: $domain_name"
     ## Информация о репозитории
     echo -e "Репозиторий: $git_url"
-    git_list
+    git_list "dns"
     line
 }
 
