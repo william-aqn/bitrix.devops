@@ -15,7 +15,7 @@ $ref = preg_replace("[^0-9a-zA-Z\-]", '', $ref);
 if ($ref) {
     echo "dev.sh -b $ref";
     $command = exec("dev.sh -b $ref" . $script, $console);
-    echo end($console);
+    echo implode(";\n", $console);
 }
 
 die();
