@@ -19,3 +19,10 @@ dev.sh
 ```
 .dev.github.webhook.php
 ```
+
+Если используется cloudflare
+```
+1. Добавляем список ip в Manage Account->Configuration->List = https://api.github.com/meta (секция вебхуков)
+2. Добавляем правила WAF (http.request.uri.path eq "/.dev.github.webhook.php" and ip.src in $github_webhooks_ip)
+3. Заходим в Configure Super Bot Fight Mode и меняем Definitely automated = Allow
+```
