@@ -162,6 +162,7 @@ set_user_random_password() {
     echo -e "Для $1 установлен пароль: $user_pswd"
 }
 
+
 ## Проверим наличие группы для разработчиков
 init_user_group() {
     if ! grep -q $user_group /etc/group; then
@@ -193,7 +194,6 @@ add_mount_point() {
         } >> /etc/fstab
     fi
 }
-
 
 ## Создаём сайт
 create_kernel_site() {
@@ -272,6 +272,15 @@ create_user() {
         ## Разово монтируем каталог, что бы не перезагружать сервер
         mount --bind /home/bitrix/ext_www/"$1.$domain_name" /home/"$1"/www
     fi
+}
+
+## Создать/Изменить пользователя
+create_user_only() {
+    local user_name=""
+    until [[ "$user_name" ]]; do
+        IFS= read -p "Введите имя пользователя: " -r user_name
+    done
+    create_user "$user_name"
 }
 
 ## Устанавливаем себя
@@ -635,6 +644,7 @@ menu() {
         echo -e "\t\t3. git init (задать директорию)"
         echo -e "\t\t6. Создать пользователя=гитветку=поддомен"
         echo -e "\t\t7. Проверить наличие DNS A записи у поддомена"
+        echo -e "\t\t8. Изменить пароль у пользователя"
         echo -e "\t\t10. Переустановить конфигурацию репозитория"
         echo -e "\t\t11. Обновить скрипт из гита"
         echo -e "\t\t12. Установить текущий скрипт"
@@ -647,6 +657,7 @@ menu() {
             "3"|init)  git_init_one; wait;;
             "6"|site)  create_site; wait;;
             "7"|dns)  check_dns_a_record_one; wait;;
+            "8"|pwd)  create_user_only; wait;;
             "10"|clear) clear_config; first_run; wait;;
             "11"|install) update_self; wait;;
             "12"|update) install_self; wait;;
