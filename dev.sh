@@ -1,5 +1,6 @@
 #!/bin/bash
 
+## Проверено на bitrixenv 7.5.2
 version=1.0
 
 ## Путь к файлу конфигурации
@@ -10,13 +11,15 @@ bitrix_helper_file=/opt/webdir/bin/bitrix_utils.sh
 
 ## Полный путь этого файла
 self_file=$(readlink -f "${BASH_SOURCE:-$0}")
+
+## Установочный путь
 global_file=/usr/local/bin/dev.sh
 
+## Актуальная версия скрипта
+update_url=https://raw.githubusercontent.com/william-aqn/bitrix.devops/main/dev.sh
 
 ## Путь к домашней директории пользователя bitrix
 bitrix_home_dir=/home/bitrix/
-
-webhook_name=.dev.github.webhook.php
 
 ## Права рута?
 is_root() {
@@ -32,8 +35,13 @@ install_bitrixenv() {
     echo "Bitrixenv не обнаружен, устанавливаем..."
     yum clean all && yum -y update
     yum install -y wget
-    wget https://repo.bitrix.info/yum/bitrix-env.sh && chmod +x bitrix-env.sh && ./bitrix-env.sh
+    wget -O bitrix-env.sh https://repo.bitrix.info/yum/bitrix-env.sh && chmod +x bitrix-env.sh && ./bitrix-env.sh
     exit
+}
+
+## Запустить bitrixenv
+start_bitrixenv() {
+    exec /root/menu.sh
 }
 
 ## Устанавливаем себя
@@ -49,6 +57,13 @@ install_self() {
     fi
 }
 
+## Обновим сами себя и перезапустим
+update_self() {
+    wget -O "$global_file" "$update_url" && chmod +x "$global_file" && bitrix:bitrix "$global_file"
+    echo -e "$global_file - обновлён"
+    wait
+    exec $global_file
+}
 
 ## Проверяем команду arg1 на существование
 check_command() {
@@ -60,6 +75,7 @@ check_command() {
     fi
 }
 
+## Подгрузим необходимые утилиты
 init_service_tools() {
     if ! check_command "dig"; then
         yum install -y bind-utils
@@ -77,6 +93,7 @@ init_bitrixenv() {
 }
 init_bitrixenv
 
+## Хелпер гита для авторизации
 git_get_credential_helper() {
     printf -v HELPER "!f() { cat >/dev/null; echo 'username=%s'; echo 'password=%s'; }; f" "$git_user" "$git_pass"
 }
@@ -107,6 +124,7 @@ check_ip() {
         echo "IP Глобальный $global_ip и локальный $current_ip отличаются"
     fi
 }
+
 
 ## Сохраняем конфиг
 save_config() {
@@ -378,15 +396,18 @@ wait() {
     read -t 3 -r > /dev/null
 }
 
+# Заглушка
 no_menu() {
     echo -e ""
 }
 
+# Линия
 line() {
-    printf "=%.0s"  $(seq 1 63)
+    printf "\x2d%.0s"  $(seq 1 85)
     printf "\n"
 }
 
+# Меню не root пользователя
 menu_bitrix() {
     until [[ "$TARGET_SELECTION" == "0" ]]; do
         header
@@ -397,7 +418,7 @@ menu_bitrix() {
 
         IFS= read -p "Пункт меню: " -r TARGET_SELECTION
         case "$TARGET_SELECTION" in 
-            "1"|a)  git_pull_one;;
+            "1"|pull)  git_pull_one;;
             0|z)  exit;;
             *)    no_menu;;
         esac
@@ -412,21 +433,26 @@ menu() {
         echo -e "\t\t1. git pull (существующей ветки)"
         echo -e "\t\t3. git init (задать директорию)"
         echo -e "\t\t10. Переустановить конфигурацию репозитория"
-        echo -e "\t\t11. Обновить скрипт"
+        echo -e "\t\t11. Обновить скрипт из гита"
+        echo -e "\t\t12. Установить текущий скрипт"
+        echo -e "\t\t20. Запустить bitrixenv"
         echo -e "\t\t0. Выход"
 
         IFS= read -p "Пункт меню: " -r TARGET_SELECTION
         case "$TARGET_SELECTION" in 
-            "1"|a)  git_pull_one;;
-            "3"|c)  git_init;;
-            "10"|x) clear_config; first_run;;
-            "11"|u) install_self; wait;;
+            "1"|pull)  git_pull_one;;
+            "3"|init)  git_init;;
+            "10"|clear) clear_config; first_run;;
+            "11"|install) update_self; wait;;
+            "12"|update) install_self; wait;;
+            "20"|env) start_bitrixenv; exit;;
             0|z)  exit;;
             *)    no_menu;;
         esac
     done  
 }
 
+## Заголовок
 header() {
     clear
     echo -e "Bitrix.DevOps" "$version" "(c)DCRM"
@@ -438,6 +464,7 @@ header() {
     line
 }
 
+## Для консольного запуска
 usage() {
     echo -e "-b {git branch name} - для запуска процедуры git pull определённой ветки"
     echo -e "-h - вывести это сообщение"
