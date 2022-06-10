@@ -65,6 +65,14 @@ update_self() {
     exec $global_file
 }
 
+check_size() {
+    local used=$( df -h / --output=pcent | awk 'END{ print $(NF-1) }' | tr -d '%' )
+    local free=$((100 - used))
+    if [[ free -lt $1 ]]; then
+        echo -e "Мало свободного места - $free%"
+    fi
+}
+
 ## Проверяем команду arg1 на существование
 check_command() {
     if ! command -v $1 > /dev/null; then
@@ -456,6 +464,8 @@ menu() {
 header() {
     clear
     echo -e "Bitrix.DevOps" "$version" "(c)DCRM"
+    ## Проверим свободное место
+    check_size 10
     ## Сразу проверим ip
     check_ip
     ## Информация о репозитории
@@ -467,6 +477,7 @@ header() {
 ## Для консольного запуска
 usage() {
     echo -e "-b {git branch name} - для запуска процедуры git pull определённой ветки"
+    echo -e "-s {минимальный процент для вывода сообщения} - проверить свободное место"
     echo -e "-h - вывести это сообщение"
 }
 
@@ -474,10 +485,11 @@ usage() {
 if load_config; then
 
     ## Если запустили с флагами
-    while getopts "hb:" flag
+    while getopts "hb:s:" flag
     do
         case "$flag" in
             b) branch=${OPTARG}; git_pull "$branch"; exit;;
+            s) free_limit=${OPTARG}; clear; check_size "$free_limit"; exit;;
             \?|h) usage; exit;;
         esac
     done
