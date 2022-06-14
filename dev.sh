@@ -370,6 +370,13 @@ clear_config() {
     git_pull_master_allow=""
 }
 
+## Проверяем необходимые данные в конфигурационном файле
+check_config(){
+    if [[ -n $git_url || -n $git_user || -n $git_pass || -n $git_branch_master_name || -n $git_pull_master_allow || -n $bitrix_home_dir || -n $domain_name ]]; then
+        first_run
+    fi  
+}
+
 ## Задаём настройки
 first_run() {
     until [[ "$git_status" == "ok" ]]; do
@@ -425,7 +432,7 @@ first_run() {
     menu
 }
 
-## Ручной ввод ветки
+## Ручной ввод ветки для принятия коммитов
 git_pull_one() {
     git_list
     branch_name=""
@@ -465,7 +472,7 @@ git_list() {
 }
 
 
-## Запуск процедуры git pull
+## Запуск процедуры принятия коммитов
 git_pull() {
     if [[ "$git_pull_master_allow" != "y" && $git_branch_master_name == "$1" ]]; then
         echo -e "$git_branch_master_name ветку запрещено автоматически обновлять"
@@ -709,6 +716,9 @@ usage() {
 
 ## Проверка на первый запуск скрипта 
 if load_config; then
+    
+    ## Проверяем, всего ли хватает
+    check_config
 
     ## Если запустили с флагами
     while getopts "hb:s:" flag
