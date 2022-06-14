@@ -246,6 +246,10 @@ create_site() {
     local user_name=""
     until [[ "$user_name" ]]; do
         IFS= read -p "Введите имя пользователя который будет одноимённым с веткой гита и поддоменом.$domain_name: " -r user_name
+        if [[ $user_name = "root" || $user_name = "bitrix" ]]; then
+            echo -e "Нельзя создать сайт для этого пользователя"
+            user_name=""
+        fi
     done
     create_kernel_site "$user_name"
 }
@@ -275,12 +279,17 @@ create_user() {
 }
 
 ## Создать/Изменить пользователя
-create_user_only() {
+change_password_exist_user() {
     local user_name=""
     until [[ "$user_name" ]]; do
         IFS= read -p "Введите имя пользователя: " -r user_name
+        if id "$user_name" &>/dev/null; then
+            set_user_random_password "$user_name"
+        else 
+            echo -e "Пользователя не существует"
+            user_name=""
+        fi
     done
-    create_user "$user_name"
 }
 
 ## Устанавливаем себя
@@ -627,7 +636,7 @@ menu_bitrix() {
     until [[ "$TARGET_SELECTION" == "0" ]]; do
         header
 
-        echo -e "\t\t1. git pull (существующей ветки)"
+        echo -e "\t\t1. Принять изменения определённой ветки"
         echo -e "\t\t*. Запустите от root, для доступа к другим пунктам меню"
         echo -e "\t\t0. Выход"
 
@@ -649,7 +658,7 @@ menu() {
         echo -e "\t\t3. (Пере)Создать репозиторий с определённой веткой"
         echo -e "\t\t6. Создать пользователя=гитветку=поддомен"
         echo -e "\t\t7. Проверить наличие DNS A записи у поддомена"
-        echo -e "\t\t8. Изменить пароль у пользователя"
+        echo -e "\t\t8. Изменить пароль у существующего пользователя"
         echo -e "\t\t10. Переустановить конфигурацию репозитория"
         echo -e "\t\t11. Обновить скрипт из гита"
         echo -e "\t\t12. Установить текущий скрипт"
@@ -662,7 +671,7 @@ menu() {
             "3"|init)  git_init_one; wait;;
             "6"|site)  create_site; wait;;
             "7"|dns)  check_dns_a_record_one; wait;;
-            "8"|pwd)  create_user_only; wait;;
+            "8"|pwd)  change_password_exist_user; wait;;
             "10"|clear) clear_config; first_run; wait;;
             "11"|install) update_self; wait;;
             "12"|update) install_self; wait;;
