@@ -490,9 +490,14 @@ git_pull() {
                     git remote set-url origin "$git_url"
                 fi
 
-                #git fetch 
-                git reset --hard
-                git -c credential.helper="$HELPER" pull
+                ## 1я стратегия, не сработала.
+                # git reset --hard
+                # git -c credential.helper="$HELPER" pull
+
+                ## 2я стратегия
+                git -c credential.helper="$HELPER" fetch --all
+                git reset --hard origin/$current_branch_name
+
                 ## Сбрасываем права
                 chown -R bitrix:bitrix "$PWD"
                 cd "$HOME" > /dev/null || exit
@@ -640,8 +645,8 @@ menu() {
     until [[ "$TARGET_SELECTION" == "0" ]]; do
         header
 
-        echo -e "\t\t1. git pull (существующей ветки)"
-        echo -e "\t\t3. git init (задать директорию)"
+        echo -e "\t\t1. Принять изменения определённой ветки"
+        echo -e "\t\t3. (Пере)Создать репозиторий с определённой веткой"
         echo -e "\t\t6. Создать пользователя=гитветку=поддомен"
         echo -e "\t\t7. Проверить наличие DNS A записи у поддомена"
         echo -e "\t\t8. Изменить пароль у пользователя"
