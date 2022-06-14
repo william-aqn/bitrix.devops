@@ -506,13 +506,25 @@ git_pull() {
                     git remote set-url origin "$git_url"
                 fi
 
-                ## 1я стратегия, не сработала.
+                ## https://stackoverflow.com/questions/17404316/the-following-untracked-working-tree-files-would-be-overwritten-by-merge-but-i
+                ## 1я стратегия, не сработает, если есть не отслеживаемые файлы
                 # git reset --hard
                 # git -c credential.helper="$HELPER" pull
 
-                ## 2я стратегия
+                ## 2я стратегия - чистим всё
                 git -c credential.helper="$HELPER" fetch --all
                 git reset --hard origin/$current_branch_name
+
+                ## 3я стратегия, лайтовее, не сделает ничего не не отслеживаемыми файлами
+                # git checkout -f donor-branch   # replace bothersome files with tracked versions
+                # git checkout receiving-branch  # tracked bothersome files disappear
+                # git merge donor-branch         # merge works
+
+                ## 3.1 Или так
+                # git fetch
+                # git checkout -f origin/mybranch   # replace bothersome files with tracked versions
+                # git checkout mybranch             # tracked bothersome files disappear
+                # git pull origin/mybranch          # pull works
 
                 ## Сбрасываем права
                 chown -R bitrix:bitrix "$PWD"
