@@ -831,9 +831,10 @@ header() {
     ## Информация о домене
     echo -e "Домен: $domain_name"
     ## Информация о репозитории
-    echo -e "Репозиторий: $git_url"
+    echo -e "Репозиторий: $git_url\n"
     git_list "dns"
     line
+    echo -e "Доступные действия:"
 }
 
 ## Для консольного запуска
@@ -860,7 +861,7 @@ menu() {
 
         echo -e "\t\t9. Запустить bitrixenv"
         # echo -e "\t\t400. Проверить наличие DNS A записи у поддомена"
-        echo -e "\t\t0. Выход"
+        echo -e "\t\t0. Выход\n"
 
         IFS= read -p "Пункт меню: " -r TARGET_SELECTION
         case "$TARGET_SELECTION" in 
