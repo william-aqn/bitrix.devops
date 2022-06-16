@@ -62,7 +62,7 @@ install_bitrixenv() {
 
 ## Проверяем команду arg1 на существование
 check_command() {
-    if ! command -v $1 > /dev/null; then
+    if ! command -v "$1" > /dev/null; then
         echo -e "Command $1 not found!"
         false
     else
@@ -301,7 +301,7 @@ init_user_group() {
 init_user_group
 
 ## Проверим настройки sshd
-check_openssh_chroot(){
+check_openssh_chroot() {
     if ! grep -q -F "$user_group" /etc/ssh/sshd_config; then
         echo "Необходимо внести правки в файл /etc/ssh/sshd_config"
         echo "Subsystem sftp internal-sftp"
@@ -848,13 +848,12 @@ menu() {
 
         echo -e "\t\t1. Принять изменения определённой ветки"
         echo -e "\t\t2. (Пере)Создать репозиторий с определённой веткой"
-        echo -e "\t\t3. Создать пользователя=гитветку=поддомен=клон основного сайта файлов и бд"
+        echo -e "\t\t3. (Пере)Создать пользователя=гитветку=поддомен=клон основного сайта файлов и бд"
         echo -e "\t\t4. Изменить пароль у существующего пользователя"
         echo -e "\t\t5. Актуализировать сайт"
 
         echo -e "\t\t6. Переустановить конфигурацию этого скрипта"
-        
-        echo -e "\t\t7. Обновить скрипт из гита"
+        echo -e "\t\t7. Переустановить/обновить скрипт из гита"
         echo -e "\t\t8. Установить текущий скрипт"
 
         echo -e "\t\t9. Запустить bitrixenv"
