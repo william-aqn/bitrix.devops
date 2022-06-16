@@ -102,8 +102,10 @@ current_ip=$(ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0
 
 ## Сравним локальный и глобальынй ip
 check_ip() {
+    echo -e "IP Глобальный $global_ip | IP Локальный $current_ip"
     if [[ "$current_ip" != "$global_ip" ]]; then
-        echo "IP Глобальный $global_ip и локальный $current_ip отличаются"
+        echo -e "IP отличаются!"
+        ## TODO: Проверить
     fi
 }
 
@@ -817,7 +819,7 @@ menu_bitrix() {
 ## Заголовок
 header() {
     clear
-    echo -e "Bitrix.DevOps" "$version" "(c)DCRM"
+    echo -e "\t\t\tBitrix.DevOps" "$version" "(c)DCRM\n"
     ## Проверяем установку основного сайта
     check_install_master_site
     ## Проверяем настройки sftp
