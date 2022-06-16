@@ -342,7 +342,7 @@ create_kernel_site() {
     fi
 
     ## TODO: /opt/webdir/bin/bx-sites -a create -s test3.local -t link --kernel_site test1.local --kernel_root /home/bitrix/ext_www/test1.local
-    local task=$(/opt/webdir/bin/bx-sites -a create -s "$1"."$domain_name" -t kernel --charset UTF-8 --cron)
+    local task=$(/opt/webdir/bin/bx-sites -a create -s "$1"."$domain_name" -t kernel --charset UTF-8) # --cron
     local task_id=$(get_task_id "$task")
     echo -e "Задание $task_id для создания сайта $1.$domain_name - запущено, ждём"
     wait_task "$task_id"
