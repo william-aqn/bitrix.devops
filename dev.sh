@@ -70,20 +70,19 @@ check_command() {
     fi
 }
 
-## Подгрузим необходимые утилиты
+## Проверим/установим необходимые утилиты
 init_service_tools() {
     if ! check_command "dig"; then
         yum install -y bind-utils
     fi
-}
-init_service_tools
-
-## Подгрузим необходимые утилиты для клонирования бд
-init_mysql_tools() {
+    if ! check_command "rsync"; then
+        yum install -y rsync
+    fi
     if ! check_command "mysqldbcopy"; then
         yum install -y mysql-utilities
     fi
 }
+init_service_tools
 
 ## Подгружаем битрикс окружение
 init_bitrixenv() {
@@ -96,21 +95,24 @@ init_bitrixenv() {
 init_bitrixenv
 
 ## Текущий глобальный IP
-init_global_ip() {
-    global_ip=$(dig @resolver4.opendns.com myip.opendns.com +short -4)
-}
-init_global_ip
+global_ip=$(dig @resolver4.opendns.com myip.opendns.com +short -4)
 
 ## Текущий локальный IP
-init_local_ip() {
-    current_ip=$(ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p')
-}
-init_local_ip
+current_ip=$(ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p')
 
 ## Сравним локальный и глобальынй ip
 check_ip() {
     if [[ "$current_ip" != "$global_ip" ]]; then
         echo "IP Глобальный $global_ip и локальный $current_ip отличаются"
+    fi
+}
+
+## Проверяем наличие служебный скриптов 
+check_install_master_site() {
+    if test -f "$bitrix_home_dir"www/restore.php || test -f "$bitrix_home_dir"www/bitrixsetup.php; then
+        echo -e "Обнаружены служебные скрипты в "$bitrix_home_dir"www/, возможно Битрикс не установлен. Исправьте для продолжения работы."
+        echo -e "http://$current_ip/ || http://$global_ip/"
+        exit
     fi
 }
 
@@ -209,29 +211,43 @@ clone_db_mysql() {
         return 0
     fi
     
-    init_mysql_tools
     if test -f "$mysql_root_config_file"; then
         . "$mysql_root_config_file"
-
-        # Убраем одинарные кавычки
-        #password=$(echo "${password//\x27/}")
 
         if [[ $user != "root" || $password = "" || $socket = "" ]]; then
             echo -e "В файле $mysql_root_config_file недостаточно данных"
             return 0
         fi
+        #echo -e "Начинаем копировать БД $1 -> $2 [root:$password@localhost], логи в файле /var/log/mysqldbcopy.log"
+        #mysqldbcopy --force --source=root:"$password"@localhost:0:"$socket" --destination=root:"$password"@localhost:0:"$socket" "$1":"$2" > /var/log/mysqldbcopy.log
 
         echo -e "Начинаем копировать БД $1 -> $2 [root:$password@localhost]"
         mysqldbcopy --force --source=root:"$password"@localhost:0:"$socket" --destination=root:"$password"@localhost:0:"$socket" "$1":"$2"
         # TODO: Не копировать grants
-        exit
     else
         echo -e "Файла $mysql_root_config_file с root паролем для mysql не существует"
     fi
 }
 
+## Синхронизируем 2 сайта
+sync_sites() {
+    # Проверяем находится ли ядро в источнике и существует ли конечный путь
+    if test -d "$1/bitrix" && test -d "$1/upload" && test -d "$1"; then
+        #echo -e "Начинаем синхронизацию [$1]->[$2], логи в файле /var/log/rsync.log"
+        #rsync -av --delete --exclude .git --exclude /bitrix/.settings.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/managed_cache --exclude bitrix/stack_cache --progress "$1/" "$2" > /var/log/rsync.log
+
+        echo -e "Начинаем синхронизацию [$1]->[$2]"
+        rsync -a --delete --exclude .git --exclude /bitrix/.settings.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/managed_cache --exclude bitrix/stack_cache --progress "$1/" "$2"
+    else
+        echo -e "Ошибка при вводе путей [$1]->[$2]"
+    fi
+}
+
 ## Выбор сайта для актуализации
 select_site_to_clone() {
+    db_name_from=""
+    db_name_to=""
+
     until [[ "$clone_mode" == "db" || "$clone_mode" == "file" || "$clone_mode" == "all" ]]; do
         IFS= read -p "Выберите режим клонирования [db/file/all]: " -r clone_mode
     done
@@ -263,8 +279,7 @@ select_site_to_clone() {
     fi
 
     if [[ "$clone_mode" == "file" || "$clone_mode" == "all" ]]; then
-        ## TODO:
-        echo -e ""
+        sync_sites "$clone_site_path_from" "$clone_site_path_to"
     fi
 }
 
@@ -457,8 +472,8 @@ save_config() {
         printf 'git_pass=%s\n' "${git_pass}";
         printf 'git_branch_master_name=%s\n' "${git_branch_master_name}";
         printf 'git_pull_master_allow=%s\n' "${git_pull_master_allow}";
-        printf 'bitrix_home_dir=%s\n' "${bitrix_home_dir}";
         printf 'domain_name=%s\n' "${domain_name}";
+        printf 'bitrix_home_dir=%s\n' "${bitrix_home_dir}";
     } > $config_file
     ## Обновляем права на файлы
     chown bitrix:bitrix $config_file
@@ -697,6 +712,7 @@ git_init() {
             done
             if [[ $git_new_dir_override != "y" ]]; then
                 git_new_dir=""
+                git_new_dir_override=""
             fi
         fi
     done
@@ -767,21 +783,12 @@ git_init() {
 }
 
 ## Ручной выбор сайта для актуализации
-select_site_to_clone_one2() {
+select_site_to_clone_one() {
     clear
     git_list ""
     clone_site_path_from=""
     clone_site_path_to=""
     clone_mode=""
-    select_site_to_clone
-}
-
-select_site_to_clone_one() {
-    clear
-    git_list ""
-    clone_site_path_from="/home/bitrix/www"
-    clone_site_path_to="/home/bitrix/ext_www/test56.test1.local"
-    clone_mode="all"
     select_site_to_clone
 }
 
@@ -807,7 +814,9 @@ menu_bitrix() {
 header() {
     clear
     echo -e "Bitrix.DevOps" "$version" "(c)DCRM"
-    ## Проверяем настройки sfto
+    ## Проверяем установку основного сайта
+    check_install_master_site
+    ## Проверяем настройки sftp
     check_openssh_chroot
     ## Проверим свободное место
     check_size 10
@@ -835,16 +844,16 @@ menu() {
 
         echo -e "\t\t1. Принять изменения определённой ветки"
         echo -e "\t\t2. (Пере)Создать репозиторий с определённой веткой"
-        echo -e "\t\t3. Создать пользователя=гитветку=поддомен"
+        echo -e "\t\t3. Создать пользователя=гитветку=поддомен=клон основного сайта файлов и бд"
         echo -e "\t\t4. Изменить пароль у существующего пользователя"
         echo -e "\t\t5. Актуализировать сайт"
 
-        echo -e "\t\t50. Переустановить конфигурацию этого скрипта"
+        echo -e "\t\t6. Переустановить конфигурацию этого скрипта"
         
-        echo -e "\t\t90. Обновить скрипт из гита"
-        echo -e "\t\t91. Установить текущий скрипт"
+        echo -e "\t\t7. Обновить скрипт из гита"
+        echo -e "\t\t8. Установить текущий скрипт"
 
-        echo -e "\t\t100. Запустить bitrixenv"
+        echo -e "\t\t9. Запустить bitrixenv"
         # echo -e "\t\t400. Проверить наличие DNS A записи у поддомена"
         echo -e "\t\t0. Выход"
 
@@ -856,10 +865,10 @@ menu() {
             "4"|pwd) change_password_exist_user; wait;;
             "5"|sync) select_site_to_clone_one; wait;;
             
-            "50"|clear) clear_config; first_run; wait;;
-            "90"|install) update_self; wait;;
-            "91"|update) install_self; wait;;
-            "100"|env) start_bitrixenv; exit;;
+            "6"|clear) clear_config; first_run; wait;;
+            "7"|install) update_self; wait;;
+            "8"|update) install_self; wait;;
+            "9"|env) start_bitrixenv; exit;;
 
             "400"|dns)  check_dns_a_record_one; wait;;
             0|z)  exit;;
