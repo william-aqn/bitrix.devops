@@ -717,15 +717,14 @@ git_init() {
         fi
     done
     
-    ## Перемещаем старый гит
-    if [[ $git_new_dir_override == "y" ]]; then
-        mv "$git_new_dir/.git" "$git_new_dir/.git.""$(date +%d%m%y.%H%I%S)"
-    fi
-
     git_get_credential_helper
     git_branch_list
     until [[ "$git_new_branch" ]]; do
             IFS= read -p "Название ветки: " -r git_new_branch
+            if [[ "$git_new_branch" == "$git_branch_master_name" ]]; then
+                echo -e "Сам инициализируй $git_new_branch ветку, это важно. Не ленись."
+                exit
+            fi
 
             if ! git_check_branch "$git_new_branch"; then
                 echo -e "Ветка $git_new_branch не существует"
@@ -739,6 +738,11 @@ git_init() {
                 fi
             fi
     done
+
+    ## Перемещаем старый гит
+    if [[ $git_new_dir_override == "y" ]]; then
+        mv "$git_new_dir/.git" "$git_new_dir/.git.""$(date +%d%m%y.%H%I%S)"
+    fi
 
     cd "$git_new_dir" || exit
 
