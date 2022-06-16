@@ -9,6 +9,8 @@ user_group=dev-group
 ## Путь к файлу конфигурации
 config_file=/home/bitrix/.dev.cnf
 
+mysql_root_config_file=/root/.my.cnf
+
 ## Путь к функциям bitrixenv
 bitrix_helper_file=/opt/webdir/bin/bitrix_utils.sh
 
@@ -75,6 +77,13 @@ init_service_tools() {
     fi
 }
 init_service_tools
+
+## Подгрузим необходимые утилиты для клонирования бд
+init_mysql_tools() {
+    if ! check_command "mysqldbcopy"; then
+        yum install -y mysql-utilities
+    fi
+}
 
 ## Подгружаем битрикс окружение
 init_bitrixenv() {
@@ -155,6 +164,110 @@ get_random_string(){
     date +%s | sha256sum | base64 | head -c 12 ; echo
 }
 
+## Проверка на существование БД
+check_db_mysql_exists() {
+    if [ -f /var/lib/mysql/"$1" ] ; then 
+        return 1
+    fi
+    return 0
+}
+
+## Берём название БД из .settings.php файла
+get_bitrix_mysql_credentials_db_name() {
+    if test -f "$1"/bitrix/.settings.php; then
+        grep -Po "(?<='database' => ').*(?=',)" "$1"/bitrix/.settings.php
+    fi
+}
+
+select_db_to_clone() {
+    # local clone_site_path=""
+    until [[ "$clone_site_path" ]]; do
+        IFS= read -p "$1 для клонирования (/home/bitrix/www): " -r clone_site_path
+    done
+    db_name="$(get_bitrix_mysql_credentials_db_name "$clone_site_path")"
+    if [[ $db_name == "" ]]; then
+        echo -e "Не удаётся получить настройки для БД из $clone_site_path/bitrix/.settings.php"
+        return 0
+    fi
+    return 1
+}
+
+## Скопировать из БД в БД
+clone_db_mysql() {
+    if ! check_db_mysql_exists "$1"; then
+        echo -e "БД-источника $1 не существует. Отмена."
+        return 0
+    fi
+
+    if ! check_db_mysql_exists "$2"; then
+        echo -e "БД-назначения $2 не существует. Отмена."
+        return 0
+    fi
+
+    if [[ "$1" == "$2" ]]; then
+        echo -e "Ошибка! Базы должны отличаться $1/$2"
+        return 0
+    fi
+    
+    init_mysql_tools
+    if test -f "$mysql_root_config_file"; then
+        . "$mysql_root_config_file"
+
+        # Убраем одинарные кавычки
+        #password=$(echo "${password//\x27/}")
+
+        if [[ $user != "root" || $password = "" || $socket = "" ]]; then
+            echo -e "В файле $mysql_root_config_file недостаточно данных"
+            return 0
+        fi
+
+        echo -e "Начинаем копировать БД $1 -> $2 [root:$password@localhost]"
+        mysqldbcopy --force --source=root:"$password"@localhost:0:"$socket" --destination=root:"$password"@localhost:0:"$socket" "$1":"$2"
+        # TODO: Не копировать grants
+        exit
+    else
+        echo -e "Файла $mysql_root_config_file с root паролем для mysql не существует"
+    fi
+}
+
+## Выбор сайта для актуализации
+select_site_to_clone() {
+    until [[ "$clone_mode" == "db" || "$clone_mode" == "file" || "$clone_mode" == "all" ]]; do
+        IFS= read -p "Выберите режим клонирования [db/file/all]: " -r clone_mode
+    done
+
+    until [[ "$db_name_from" ]]; do
+        until [[ "$clone_site_path_from" ]]; do
+            IFS= read -p "Сайт-источник файлов (/home/bitrix/www) в котором находится файл /bitrix/.settings.php: " -r clone_site_path_from
+        done
+        db_name_from="$(get_bitrix_mysql_credentials_db_name "$clone_site_path_from")"
+        if [[ $db_name_from == "" ]]; then
+            echo -e "Не удаётся получить настройки для БД из $clone_site_path_from/bitrix/.settings.php"
+            clone_site_path_from=""
+        fi
+    done
+
+    until [[ "$db_name_to" ]]; do
+        until [[ "$clone_site_path_to" ]]; do
+            IFS= read -p "Сайт для актуализации (/home/bitrix/ext_www/domain) в котором находится файл /bitrix/.settings.php: " -r clone_site_path_to
+        done
+        db_name_to="$(get_bitrix_mysql_credentials_db_name "$clone_site_path_to")"
+        if [[ $db_name_to == "" ]]; then
+            echo -e "Не удаётся получить настройки для БД из $clone_site_path_to/bitrix/.settings.php"
+            clone_site_path_to=""
+        fi
+    done
+
+    if [[ "$clone_mode" == "db" || "$clone_mode" == "all" ]]; then
+        clone_db_mysql "$db_name_from" "$db_name_to"
+    fi
+
+    if [[ "$clone_mode" == "file" || "$clone_mode" == "all" ]]; then
+        ## TODO:
+        echo -e ""
+    fi
+}
+
 ## Установить случайный пароль для пользователя
 set_user_random_password() {
     user_pswd=$(get_random_string)
@@ -219,8 +332,11 @@ create_kernel_site() {
     echo -e "Задание $task_id для создания сайта $1.$domain_name - запущено, ждём"
     wait_task "$task_id"
 
-    ## TODO:
     ## Копируем сайт+БД
+    clone_site_path_from="/home/bitrix/www"
+    clone_site_path_to="/home/bitrix/ext_www/$1.$domain_name"
+    clone_mode="all"
+    select_site_to_clone
 
     ## Создаём гит+ветку
     git_new_dir="/home/bitrix/ext_www/$1.$domain_name"
@@ -650,7 +766,26 @@ git_init() {
     git branch -a
 }
 
-# Меню не root пользователя
+## Ручной выбор сайта для актуализации
+select_site_to_clone_one2() {
+    clear
+    git_list ""
+    clone_site_path_from=""
+    clone_site_path_to=""
+    clone_mode=""
+    select_site_to_clone
+}
+
+select_site_to_clone_one() {
+    clear
+    git_list ""
+    clone_site_path_from="/home/bitrix/www"
+    clone_site_path_to="/home/bitrix/ext_www/test56.test1.local"
+    clone_mode="all"
+    select_site_to_clone
+}
+
+## Меню не root пользователя
 menu_bitrix() {
     until [[ "$TARGET_SELECTION" == "0" ]]; do
         header
@@ -666,39 +801,6 @@ menu_bitrix() {
             *)    no_menu;;
         esac
     done
-}
-
-## Вывод основного меню
-menu() {
-    until [[ "$TARGET_SELECTION" == "0" ]]; do
-        header
-
-        echo -e "\t\t1. Принять изменения определённой ветки"
-        echo -e "\t\t3. (Пере)Создать репозиторий с определённой веткой"
-        echo -e "\t\t6. Создать пользователя=гитветку=поддомен"
-        echo -e "\t\t7. Проверить наличие DNS A записи у поддомена"
-        echo -e "\t\t8. Изменить пароль у существующего пользователя"
-        echo -e "\t\t10. Переустановить конфигурацию репозитория"
-        echo -e "\t\t11. Обновить скрипт из гита"
-        echo -e "\t\t12. Установить текущий скрипт"
-        echo -e "\t\t20. Запустить bitrixenv"
-        echo -e "\t\t0. Выход"
-
-        IFS= read -p "Пункт меню: " -r TARGET_SELECTION
-        case "$TARGET_SELECTION" in 
-            "1"|pull)  git_pull_one; wait;;
-            "3"|init)  git_init_one; wait;;
-            "6"|site)  create_site; wait;;
-            "7"|dns)  check_dns_a_record_one; wait;;
-            "8"|pwd)  change_password_exist_user; wait;;
-            "10"|clear) clear_config; first_run; wait;;
-            "11"|install) update_self; wait;;
-            "12"|update) install_self; wait;;
-            "20"|env) start_bitrixenv; exit;;
-            0|z)  exit;;
-            *)    no_menu;;
-        esac
-    done  
 }
 
 ## Заголовок
@@ -724,6 +826,46 @@ usage() {
     echo -e "-b {git branch name} - для запуска процедуры git pull определённой ветки"
     echo -e "-s {минимальный процент для вывода сообщения} - проверить свободное место"
     echo -e "-h - вывести это сообщение"
+}
+
+## Вывод основного меню
+menu() {
+    until [[ "$TARGET_SELECTION" == "0" ]]; do
+        header
+
+        echo -e "\t\t1. Принять изменения определённой ветки"
+        echo -e "\t\t2. (Пере)Создать репозиторий с определённой веткой"
+        echo -e "\t\t3. Создать пользователя=гитветку=поддомен"
+        echo -e "\t\t4. Изменить пароль у существующего пользователя"
+        echo -e "\t\t5. Актуализировать сайт"
+
+        echo -e "\t\t50. Переустановить конфигурацию этого скрипта"
+        
+        echo -e "\t\t90. Обновить скрипт из гита"
+        echo -e "\t\t91. Установить текущий скрипт"
+
+        echo -e "\t\t100. Запустить bitrixenv"
+        # echo -e "\t\t400. Проверить наличие DNS A записи у поддомена"
+        echo -e "\t\t0. Выход"
+
+        IFS= read -p "Пункт меню: " -r TARGET_SELECTION
+        case "$TARGET_SELECTION" in 
+            "1"|pull) git_pull_one; wait;;
+            "2"|init) git_init_one; wait;;
+            "3"|site) create_site; wait;;
+            "4"|pwd) change_password_exist_user; wait;;
+            "5"|sync) select_site_to_clone_one; wait;;
+            
+            "50"|clear) clear_config; first_run; wait;;
+            "90"|install) update_self; wait;;
+            "91"|update) install_self; wait;;
+            "100"|env) start_bitrixenv; exit;;
+
+            "400"|dns)  check_dns_a_record_one; wait;;
+            0|z)  exit;;
+            *)    no_menu;;
+        esac
+    done  
 }
 
 ## Проверка на первый запуск скрипта 
