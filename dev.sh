@@ -313,6 +313,15 @@ check_openssh_chroot() {
     fi   
 }
 
+## Проверим /etc/hosts на наличие домена
+# TODO: Расширить на поддомены
+check_hosts() {
+    if ! grep -q -F "$domain_name" /etc/hosts; then
+        echo "Домен $domain_name отсутствует в файле /etc/hosts"
+        line
+    fi   
+}
+
 ## Добавляем точку монтирования для пользователя в его домашний каталог
 add_mount_point() {
     if ! grep -q "/home/$1/www" /etc/fstab; then
@@ -824,6 +833,8 @@ header() {
     check_install_master_site
     ## Проверяем настройки sftp
     check_openssh_chroot
+    ## Проверим /etc/hosts
+    check_hosts
     ## Проверим свободное место
     check_size 10
     ## Сразу проверим ip
