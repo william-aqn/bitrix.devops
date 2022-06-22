@@ -519,9 +519,30 @@ clear_config() {
 
 ## Проверяем необходимые данные в конфигурационном файле
 check_config(){
-    if [[ -n $git_url || -n $git_user || -n $git_pass || -n $git_branch_master_name || -n $git_pull_master_allow || -n $bitrix_home_dir || -n $domain_name ]]; then
+    if [[ -z $git_url 
+        || -z $git_user 
+        || -z $git_pass
+        || -z $git_branch_master_name 
+        || -z $git_pull_master_allow 
+        || -z $bitrix_home_dir 
+        || -z $domain_name 
+    ]]; then
+        if ! is_root; then
+            echo "Надо заполнить файл с конфигурацией, запустите под root пользователем"
+            exit
+        fi
+        echo -e "Надо заполнить файл с конфигурацией"
         first_run
     fi  
+}
+
+## Показать меню в зависимости от прав
+select_menu() {
+    if is_root; then
+        menu
+    else
+        menu_bitrix
+    fi
 }
 
 ## Задаём настройки
@@ -575,8 +596,8 @@ first_run() {
     ## Устанавливаем себя глобально
     install_self
 
-    ## Запускаем основное меню
-    menu
+    ## Запускаем меню
+    select_menu
 }
 
 ## Ручной ввод ветки для принятия коммитов
@@ -927,11 +948,7 @@ if load_config; then
     done
 
     ## Обычное или ограниченное меню
-    if is_root; then
-        menu
-    else
-        menu_bitrix
-    fi
+    select_menu
 else
     if ! is_root; then
         echo "Скрипт не инициализирован, запустите под root пользователем"
