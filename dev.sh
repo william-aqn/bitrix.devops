@@ -120,7 +120,7 @@ check_install_master_site() {
 
 ## Проверить dns A поддомена
 check_dns_a_record() {
-    dig "$1" A +short
+   dig "$1" A +short | xargs | sed -e 's/ /,/g'
 }
 
 ## Проверить dns A поддомена (ручной ввод)
@@ -605,8 +605,10 @@ git_list() {
                 if [[ $domain == "www" ]]; then
                     domain="$domain_name"
                 fi
-                dns="$domain A: $(check_dns_a_record "$domain" | sed 's/ /,/g')"
+                
+                dns="$domain A: $(check_dns_a_record "$domain")"
             fi
+            
             ## Ячейка таблицы
             printf -v result "%s%s\t%s\t%s\t%s\n" "$result" "$current_branch_name" "$current_commit" "$PWD" "$dns"
             cd - > /dev/null || exit
