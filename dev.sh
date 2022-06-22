@@ -605,7 +605,7 @@ git_list() {
                 if [[ $domain == "www" ]]; then
                     domain="$domain_name"
                 fi
-                dns="$domain A: $(check_dns_a_record "$domain")"
+                dns="$domain A: $(check_dns_a_record "$domain" | tr '\n' ', ')"
             fi
             ## Ячейка таблицы
             printf -v result "%s%s\t%s\t%s\t%s\n" "$result" "$current_branch_name" "$current_commit" "$PWD" "$dns"
