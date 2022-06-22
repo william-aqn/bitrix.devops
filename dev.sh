@@ -40,15 +40,20 @@ wait() {
     read -t 3 -r > /dev/null
 }
 
-# Заглушка
+## Заглушка
 no_menu() {
     echo -e ""
 }
 
-# Линия
+## Линия
 line() {
     printf "\x2d%.0s"  $(seq 1 85)
     printf "\n"
+}
+
+## Сделать текст красным
+warning_text() {
+    echo -e "\033[31m$1\033[m"
 }
 
 ## Устанавливаем битрикс окружение
@@ -104,7 +109,7 @@ current_ip=$(ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0
 check_ip() {
     echo -e "IP Глобальный $global_ip | IP Локальный $current_ip"
     if [[ "$current_ip" != "$global_ip" ]]; then
-        echo -e "IP отличаются!"
+        warning_text "IP отличаются!"
         ## TODO: Проверить
     fi
 }
@@ -112,7 +117,7 @@ check_ip() {
 ## Проверяем наличие служебный скриптов 
 check_install_master_site() {
     if test -f "$bitrix_home_dir"www/restore.php || test -f "$bitrix_home_dir"www/bitrixsetup.php; then
-        echo -e "Обнаружены служебные скрипты в "$bitrix_home_dir"www/, возможно Битрикс не установлен. Исправьте для продолжения работы."
+        warning_text "Обнаружены служебные скрипты в "$bitrix_home_dir"www/, возможно Битрикс не установлен. Исправьте для продолжения работы."
         echo -e "http://$current_ip/ || http://$global_ip/"
         exit
     fi
@@ -305,7 +310,7 @@ init_user_group
 ## Проверим настройки sshd
 check_openssh_chroot() {
     if ! grep -q -F "$user_group" /etc/ssh/sshd_config; then
-        echo "Необходимо внести правки в файл /etc/ssh/sshd_config"
+        warning_text "Необходимо внести правки в файл /etc/ssh/sshd_config"
         echo "Subsystem sftp internal-sftp"
         echo "Match Group $user_group"
         echo "ChrootDirectory /home/%u"
@@ -317,7 +322,7 @@ check_openssh_chroot() {
 # TODO: Расширить на поддомены
 check_hosts() {
     if ! grep -q -F "$domain_name" /etc/hosts; then
-        echo "Домен $domain_name отсутствует в файле /etc/hosts"
+        warning_text "Домен $domain_name отсутствует в файле /etc/hosts"
         line
     fi   
 }
@@ -839,7 +844,7 @@ menu_bitrix() {
 ## Заголовок
 header() {
     clear
-    echo -e "\t\t\tBitrix.DevOps" "$version" "(c)DCRM\n"
+    echo -e "\033[1m\t\t\tBitrix.DevOps" "$version" "(c)DCRM\n\033[m"
     ## Проверяем установку основного сайта
     check_install_master_site
     ## Проверяем настройки sftp
