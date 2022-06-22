@@ -774,7 +774,10 @@ git_init() {
         ## Делаем новую ветку от мастера
         git -c credential.helper="$HELPER" fetch origin
         git branch "$git_branch_master_name" origin/"$git_branch_master_name"
-        git reset --hard
+
+        git -c credential.helper="$HELPER" fetch --all
+        git reset --hard origin/$git_branch_master_name
+
         git checkout -b "$git_new_branch"
         if [[ $(git_current_local_branch) == "$git_new_branch" ]]; then
             git -c credential.helper="$HELPER" push --set-upstream origin "$git_new_branch"
