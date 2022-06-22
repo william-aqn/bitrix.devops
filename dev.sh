@@ -604,7 +604,7 @@ git_list() {
             current_branch_name=$(git symbolic-ref --short -q HEAD)
 
             ## Текущий коммит
-            current_commit=$(git show -s --format='%h %s')
+            current_commit=$(git show -s --format='%h / %ad / %s')
 
             ## Проверяем наличие A записи у доменов
             local dns=""
