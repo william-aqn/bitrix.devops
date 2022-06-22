@@ -589,7 +589,11 @@ git_list() {
     line
     local result=""
     ## Заголовок таблицы
-    printf -v result '%s\t%s\t%s\t%s\n' "Ветка" "Коммит" "Директория" "DNS"
+    printf -v result '%s\t%s\t%s' "Ветка" "Коммит" "Директория"
+    if [[ $1 == "dns" ]]; then
+        printf -v result "%s\t%s\t%s" "$result" "Домен" "DNS-A"
+    fi
+
     for dir in $(find $bitrix_home_dir -maxdepth 3 -type d -name ".git")
         do cd "${dir%/*}" || exit
             current_branch_name=$(git symbolic-ref --short -q HEAD)
@@ -605,12 +609,11 @@ git_list() {
                 if [[ $domain == "www" ]]; then
                     domain="$domain_name"
                 fi
-                
-                dns="$domain A: $(check_dns_a_record "$domain")"
+                printf -v dns "%s\t%s" "$domain" "$(check_dns_a_record "$domain")"
             fi
             
             ## Ячейка таблицы
-            printf -v result "%s%s\t%s\t%s\t%s\n" "$result" "$current_branch_name" "$current_commit" "$PWD" "$dns"
+            printf -v result "%s\n%s\t%s\t%s\t%s\n" "$result" "$current_branch_name" "$current_commit" "$PWD" "$dns"
             cd - > /dev/null || exit
         done
     ## Строим таблицу
