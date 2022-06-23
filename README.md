@@ -39,5 +39,5 @@ dev.sh
 3. Заходим в Configure Super Bot Fight Mode и меняем Definitely automated = Allow
 
 На сервере:
-1. Добавляем cron задание для запуска dev.sh с ключём -c
+1. Добавляем cron задание для запуска dev.sh с ключём -c в меню скрипта dev.sh
 ```

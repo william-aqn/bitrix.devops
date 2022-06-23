@@ -29,6 +29,11 @@ bitrix_home_dir=/home/bitrix/
 ## Путь к адресам cloudflare
 CLOUDFLARE_IP_RANGES_FILE_PATH="/etc/nginx/bx/maps/cloudflare.conf"
 
+## Задание для crontab
+cloudflare_croncmd="$global_file -c > /dev/null 2>&1"
+cloudflare_cronjob="0 */15 * * * $cloudflare_croncmd"
+cloudflare_cronfile="/etc/cron.d/dev.sh.cloudflare"
+
 ## Права рута?
 is_root() {
     if [ "$EUID" -ne 0 ]; then 
@@ -849,6 +854,29 @@ select_site_to_clone_one() {
     select_site_to_clone
 }
 
+## Проверить наличие cron задания 
+check_cloudflare_cron() {
+    if ! test -f "$cloudflare_cronfile"; then
+        warning_text "Cron задание для обновления $CLOUDFLARE_IP_RANGES_FILE_PATH отключено"
+    fi;
+}
+
+## Удалить cron задание 
+remove_cloudflare_cron() {
+    if [ "$(check_cloudflare_cron)" != "" ]; then
+        echo -e "Нечего удалять"
+    else
+        rm -rf "$cloudflare_cronfile"
+        echo -e "Файл с cron заданием $cloudflare_cronfile удалён"
+    fi
+}
+
+## Установить cron задание 
+set_cloudflare_cron() {
+    echo "$cloudflare_cronjob" > "$cloudflare_cronfile"
+    service crond restart
+}
+
 ## Проверить наличие файла с настройками cloudflare для nginx
 check_cloudflare() {
     if ! test -f "$CLOUDFLARE_IP_RANGES_FILE_PATH"; then
@@ -1028,19 +1056,27 @@ menu_cloudflare() {
         title
         echo -e "Cloudflare для nginx (определение ip адреса)"
         check_cloudflare
+        check_cloudflare_cron
         line
         echo -e "Доступные действия:"
 
-        echo -e "\t\t1. (Пере)Создать файл с определением ip адресов от cloudflare для nginx"
+        echo -e "\t\t1. Включить периодическое обновление файла для nginx"
+        if [ "$(check_cloudflare_cron)" == "" ]; then
+            echo -e "\t\t2. Отключить периодическое обновление файла для nginx"
+        fi
+
+        echo -e "\t\t3. (Пере)Создать файл с определением ip адресов от cloudflare для nginx"
         if [ "$(check_cloudflare)" == "" ]; then
-            echo -e "\t\t2. Удалить файл для подстановки ip адресов от cloudflare для nginx"
+            echo -e "\t\t4. Удалить файл для подстановки ip адресов от cloudflare для nginx"
         fi
         echo -e "\t\t0. Назад\n"
 
         IFS= read -p "Пункт меню: " -r CLOUDFLARE_SELECTION
         case "$CLOUDFLARE_SELECTION" in 
-            "1"|set) set_cloudflare; wait;;
-            "2"|del) remove_cloudflare; wait;;
+            "1"|cron) set_cloudflare_cron; wait;;
+            "2"|crondel) remove_cloudflare_cron; wait;;
+            "3"|set) set_cloudflare; wait;;
+            "4"|del) remove_cloudflare; wait;;
             
             0|z)  return;;
             *)    no_menu;;
