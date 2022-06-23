@@ -31,7 +31,7 @@ CLOUDFLARE_IP_RANGES_FILE_PATH="/etc/nginx/bx/maps/cloudflare.conf"
 
 ## Задание для crontab
 cloudflare_croncmd="$global_file -c > /dev/null 2>&1"
-cloudflare_cronjob="0 */15 * * * $cloudflare_croncmd"
+cloudflare_cronjob="0 1 * * * $cloudflare_croncmd"
 cloudflare_cronfile="/etc/cron.d/dev.sh.cloudflare"
 
 ## Права рута?
@@ -873,6 +873,7 @@ remove_cloudflare_cron() {
 
 ## Установить cron задание 
 set_cloudflare_cron() {
+    echo -e "Задание добавлено: $cloudflare_cronjob"
     echo "$cloudflare_cronjob" > "$cloudflare_cronfile"
     service crond restart
 }
