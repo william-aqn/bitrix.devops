@@ -873,8 +873,8 @@ remove_cloudflare_cron() {
 
 ## Установить cron задание 
 set_cloudflare_cron() {
-    echo -e "Задание добавлено: $cloudflare_cronjob"
     echo "$cloudflare_cronjob" > "$cloudflare_cronfile"
+    echo -e "Задание добавлено: $cloudflare_cronjob"
     service crond restart
 }
 
