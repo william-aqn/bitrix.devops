@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Проверено на bitrixenv 7.5.2
-version=1.0
+version=1.1
 
 ## Группа пользователей для разработчиков
 user_group=dev-group
@@ -25,6 +25,9 @@ update_url=https://raw.githubusercontent.com/william-aqn/bitrix.devops/main/dev.
 
 ## Путь к домашней директории пользователя bitrix
 bitrix_home_dir=/home/bitrix/
+
+## Путь к адресам cloudflare
+CLOUDFLARE_IP_RANGES_FILE_PATH="/etc/nginx/bx/maps/cloudflare.conf"
 
 ## Права рута?
 is_root() {
@@ -846,6 +849,69 @@ select_site_to_clone_one() {
     select_site_to_clone
 }
 
+## Проверить наличие файла с настройками cloudflare для nginx
+check_cloudflare() {
+    if ! test -f "$CLOUDFLARE_IP_RANGES_FILE_PATH"; then
+        warning_text "Файл $CLOUDFLARE_IP_RANGES_FILE_PATH отсуствует"
+    fi;
+}
+
+## Удалить файл с настройками cloudflare для nginx
+remove_cloudflare() {
+    if [ "$(check_cloudflare)" != "" ]; then
+        echo -e "Нечего удалять"
+    else
+        rm -rf "$CLOUDFLARE_IP_RANGES_FILE_PATH"
+        echo -e "Файл $CLOUDFLARE_IP_RANGES_FILE_PATH удалён"
+    fi
+}
+
+## Подстановка настоящего ip адреса, если сайт защищён cloudflare
+set_cloudflare() {
+    # https://dev.1c-bitrix.ru/support/forum/forum32/topic76006/
+    
+    CLOUDFLARE_IPSV4_REMOTE_FILE="https://www.cloudflare.com/ips-v4"
+    CLOUDFLARE_IPSV6_REMOTE_FILE="https://www.cloudflare.com/ips-v6"
+    CLOUDFLARE_IPSV4_LOCAL_FILE="/tmp/cloudflare-ips-v4"
+    CLOUDFLARE_IPSV6_LOCAL_FILE="/tmp/cloudflare-ips-v6"
+
+    echo -e "Скачиваем файл $CLOUDFLARE_IPSV4_REMOTE_FILE"
+    wget -q $CLOUDFLARE_IPSV4_REMOTE_FILE -O $CLOUDFLARE_IPSV4_LOCAL_FILE --no-check-certificate
+    echo -e "Скачиваем файл $CLOUDFLARE_IPSV6_REMOTE_FILE"
+    wget -q $CLOUDFLARE_IPSV6_REMOTE_FILE -O $CLOUDFLARE_IPSV6_LOCAL_FILE --no-check-certificate
+
+    {
+        echo "# CloudFlare IP Ranges" 
+        echo "# Generated at $(date) by $0"
+        echo ""
+        echo "# IPs v4" 
+        awk '{ print "set_real_ip_from " $0 ";" }' $CLOUDFLARE_IPSV4_LOCAL_FILE 
+        echo "" 
+        echo "# IPs v6"
+        awk '{ print "set_real_ip_from " $0 ";" }' $CLOUDFLARE_IPSV6_LOCAL_FILE 
+        echo "" 
+        echo "# Getting real ip from CF-Connecting-IP header"
+        echo "real_ip_header CF-Connecting-IP;" 
+        echo "" 
+    } > $CLOUDFLARE_IP_RANGES_FILE_PATH
+
+    chown bitrix:bitrix $CLOUDFLARE_IP_RANGES_FILE_PATH
+
+    rm -rf $CLOUDFLARE_IPSV4_LOCAL_FILE
+    rm -rf $CLOUDFLARE_IPSV6_LOCAL_FILE
+    echo -e "Файл $CLOUDFLARE_IP_RANGES_FILE_PATH записан"
+    systemctl reload nginx.service
+    echo -e "systemctl reload nginx.service"
+}
+
+## Для консольного запуска
+usage() {
+    echo -e "-b {git branch name} - для запуска процедуры git pull определённой ветки"
+    echo -e "-s {минимальный процент для вывода сообщения} - проверить свободное место"
+    echo -e "-c - cloudflare nginx ip set (только от root)"
+    echo -e "-h - вывести это сообщение"
+}
+
 ## Меню не root пользователя
 menu_bitrix() {
     until [[ "$TARGET_SELECTION" == "0" ]]; do
@@ -865,9 +931,14 @@ menu_bitrix() {
 }
 
 ## Заголовок
-header() {
+title() {
     clear
     echo -e "\033[1m\t\t\tBitrix.DevOps" "$version" "(c)DCRM\n\033[m"
+}
+
+## Шапка
+header() {
+    title
     ## Проверяем установку основного сайта
     check_install_master_site
     ## Проверяем настройки sftp
@@ -887,13 +958,6 @@ header() {
     echo -e "Доступные действия:"
 }
 
-## Для консольного запуска
-usage() {
-    echo -e "-b {git branch name} - для запуска процедуры git pull определённой ветки"
-    echo -e "-s {минимальный процент для вывода сообщения} - проверить свободное место"
-    echo -e "-h - вывести это сообщение"
-}
-
 ## Вывод основного меню
 menu() {
     until [[ "$TARGET_SELECTION" == "0" ]]; do
@@ -905,12 +969,10 @@ menu() {
         echo -e "\t\t4. Изменить пароль у существующего пользователя"
         echo -e "\t\t5. Актуализировать сайт"
 
-        echo -e "\t\t6. Переустановить конфигурацию этого скрипта"
-        echo -e "\t\t7. Обновить установленный скрипт"
-        echo -e "\t\t8. Установить текущий скрипт"
+        echo -e "\t\t7. Cloudflare для nginx (определение ip адреса)"
+        echo -e "\t\t8. Настройки dev.sh"
 
         echo -e "\t\t9. Запустить bitrixenv"
-        # echo -e "\t\t400. Проверить наличие DNS A записи у поддомена"
         echo -e "\t\t0. Выход\n"
 
         IFS= read -p "Пункт меню: " -r TARGET_SELECTION
@@ -921,13 +983,66 @@ menu() {
             "4"|pwd) change_password_exist_user; wait;;
             "5"|sync) select_site_to_clone_one; wait;;
             
-            "6"|clear) clear_config; first_run; wait;;
-            "7"|install) update_self; wait;;
-            "8"|update) install_self; wait;;
+            "7"|cloudflare) menu_cloudflare;;
+            "8"|settings) menu_settings;;
+
             "9"|env) start_bitrixenv; exit;;
 
-            "400"|dns)  check_dns_a_record_one; wait;;
+            
             0|z)  exit;;
+            *)    no_menu;;
+        esac
+    done  
+}
+
+## Меню с настройками
+menu_settings() {
+    until [[ "$SETTINGS_SELECTION" == "0" ]]; do
+        title
+        echo -e "Настройки dev.sh"
+        line
+        echo -e "Доступные действия:"
+
+        echo -e "\t\t1. Переустановить конфигурацию этого скрипта"
+        echo -e "\t\t2. Обновить установленный скрипт"
+        echo -e "\t\t3. Установить текущий скрипт"
+        # echo -e "\t\t400. Проверить наличие DNS A записи у поддомена"
+        echo -e "\t\t0. Назад\n"
+
+        IFS= read -p "Пункт меню: " -r SETTINGS_SELECTION
+        case "$SETTINGS_SELECTION" in 
+            "1"|clear) clear_config; first_run; wait;;
+            "2"|install) update_self; wait;;
+            "3"|update) install_self; wait;;
+            "400"|dns)  check_dns_a_record_one; wait;;
+            
+            0|z)  return;;
+            *)    no_menu;;
+        esac
+    done  
+}
+
+## Меню с cloudflare
+menu_cloudflare() {
+    until [[ "$CLOUDFLARE_SELECTION" == "0" ]]; do
+        title
+        echo -e "Cloudflare для nginx (определение ip адреса)"
+        check_cloudflare
+        line
+        echo -e "Доступные действия:"
+
+        echo -e "\t\t1. (Пере)Создать файл с определением ip адресов от cloudflare для nginx"
+        if [ "$(check_cloudflare)" == "" ]; then
+            echo -e "\t\t2. Удалить файл для подстановки ip адресов от cloudflare для nginx"
+        fi
+        echo -e "\t\t0. Назад\n"
+
+        IFS= read -p "Пункт меню: " -r CLOUDFLARE_SELECTION
+        case "$CLOUDFLARE_SELECTION" in 
+            "1"|set) set_cloudflare; wait;;
+            "2"|del) remove_cloudflare; wait;;
+            
+            0|z)  return;;
             *)    no_menu;;
         esac
     done  
@@ -940,11 +1055,15 @@ if load_config; then
     check_config
 
     ## Если запустили с флагами
-    while getopts "hb:s:" flag
+    while getopts "hcb:s:" flag
     do
         case "$flag" in
             b) branch=${OPTARG}; git_pull "$branch"; exit;;
             s) free_limit=${OPTARG}; clear; check_size "$free_limit"; exit;;
+            c) 
+                if is_root; then set_cloudflare ; fi
+                exit
+            ;;
             \?|h) usage; exit;;
         esac
     done

@@ -8,6 +8,7 @@
 * Проверит свободное место на сервере
 * Проверит ip адреса локальные и глобальные
 * Принимает входящие вебхуки от github.com через php файл (который надо разместить где нибудь) с последующим git pull
+* Добавлена поддержка подстановки настоящего ip адреса от cloudflare в nginx
 
 TODO: 
 * Автоматическое создание поддомена для вебхука, размещение вебхука, генерация ключа для вебхука, вывод ссылки и инструкции для github.com
@@ -32,7 +33,11 @@ dev.sh
 
 Если используется cloudflare
 ```
+В ЛК cloudflare:
 1. Добавляем список ip в Manage Account->Configuration->List = https://api.github.com/meta (секция вебхуков)
 2. Добавляем правила WAF (http.request.uri.path eq "/.dev.github.webhook.php" and ip.src in $github_webhooks_ip)
 3. Заходим в Configure Super Bot Fight Mode и меняем Definitely automated = Allow
+
+На сервере:
+1. Добавляем cron задание для запуска dev.sh с ключём -c
 ```
