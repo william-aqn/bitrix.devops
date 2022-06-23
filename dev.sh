@@ -244,7 +244,7 @@ sync_sites() {
         #rsync -av --delete --exclude .git --exclude /bitrix/.settings.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/managed_cache --exclude bitrix/stack_cache --progress "$1/" "$2" > /var/log/rsync.log
 
         echo -e "Начинаем синхронизацию [$1]->[$2]"
-        rsync -a --delete --exclude .git --exclude /bitrix/.settings.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/managed_cache --exclude bitrix/stack_cache --progress "$1/" "$2"
+        rsync -a --delete --exclude .git --exclude /bitrix/.settings.php --exclude /bitrix/.settings_extra.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/html_pages --exclude bitrix/managed_cache --exclude bitrix/stack_cache --progress "$1/" "$2"
     else
         echo -e "Ошибка при вводе путей [$1]->[$2]"
     fi
@@ -261,7 +261,7 @@ select_site_to_clone() {
 
     until [[ "$db_name_from" ]]; do
         until [[ "$clone_site_path_from" ]]; do
-            IFS= read -p "Сайт-источник файлов (/home/bitrix/www) в котором находится файл /bitrix/.settings.php: " -r clone_site_path_from
+            IFS= read -p "Сайт-источник файлов (например: /home/bitrix/www) в котором находится файл /bitrix/.settings.php: " -r clone_site_path_from
         done
         db_name_from="$(get_bitrix_mysql_credentials_db_name "$clone_site_path_from")"
         if [[ $db_name_from == "" ]]; then
@@ -272,7 +272,7 @@ select_site_to_clone() {
 
     until [[ "$db_name_to" ]]; do
         until [[ "$clone_site_path_to" ]]; do
-            IFS= read -p "Сайт для актуализации (/home/bitrix/ext_www/domain) в котором находится файл /bitrix/.settings.php: " -r clone_site_path_to
+            IFS= read -p "Сайт для актуализации (например: /home/bitrix/ext_www/domain) в котором находится файл /bitrix/.settings.php: " -r clone_site_path_to
         done
         db_name_to="$(get_bitrix_mysql_credentials_db_name "$clone_site_path_to")"
         if [[ $db_name_to == "" ]]; then
