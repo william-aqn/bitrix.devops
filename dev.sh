@@ -245,6 +245,8 @@ sync_sites() {
 
         echo -e "Начинаем синхронизацию [$1]->[$2]"
         rsync -a --delete --exclude .git --exclude /bitrix/.settings.php --exclude /bitrix/.settings_extra.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/html_pages --exclude bitrix/managed_cache --exclude bitrix/stack_cache --progress "$1/" "$2"
+        warning_text "Обязательно очищайте кэш в админке"
+        wait
     else
         echo -e "Ошибка при вводе путей [$1]->[$2]"
     fi
