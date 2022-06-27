@@ -9,6 +9,7 @@ user_group=dev-group
 ## Путь к файлу конфигурации
 config_file=/home/bitrix/.dev.cnf
 
+## Путь к mysql доступам
 mysql_root_config_file=/root/.my.cnf
 
 ## Путь к функциям bitrixenv
@@ -29,7 +30,7 @@ bitrix_home_dir=/home/bitrix/
 ## Путь к адресам cloudflare
 CLOUDFLARE_IP_RANGES_FILE_PATH="/etc/nginx/bx/maps/cloudflare.conf"
 
-## Задание для crontab
+## Задание для cloudflare crontab
 cloudflare_croncmd="$global_file -c > /dev/null 2>&1"
 cloudflare_cronjob="0 1 * * * $cloudflare_croncmd"
 cloudflare_cronfile="/etc/cron.d/dev.sh.cloudflare"
@@ -184,6 +185,16 @@ get_random_string(){
     date +%s | sha256sum | base64 | head -c 12 ; echo
 }
 
+## Проверим наличие мастер ветки в директории
+git_check_master_in_dir() {
+    cd "${1}" || false;
+    if [[ "$(git symbolic-ref --short -q HEAD)" == "$git_branch_master_name" ]]; then
+        true
+    else
+        false
+    fi
+}
+
 ## Проверка на существование БД
 check_db_mysql_exists() {
     if [ -f /var/lib/mysql/"$1" ] ; then 
@@ -291,6 +302,18 @@ select_site_to_clone() {
         if [[ $db_name_to == "" ]]; then
             echo -e "Не удаётся получить настройки для БД из $clone_site_path_to/bitrix/.settings.php"
             clone_site_path_to=""
+        fi
+
+        ## Защищаем мастер ветку
+        if git_check_master_in_dir "$clone_site_path_to"; then
+            if [[ "$git_pull_master_allow" == "y" ]]; then
+                warning_text "Обнаружена $git_branch_master_name ветка"
+            else
+                warning_text "Обнаружена защищённая $git_branch_master_name ветка. Введите другой путь."
+                db_name_to=""
+                clone_site_path_to=""
+            fi
+
         fi
     done
 
