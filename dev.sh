@@ -398,7 +398,9 @@ create_kernel_site() {
 
     ## Создаём пользователя
     create_user "$1"
-
+    ## Фиксим монтирование директории при пересоздании сайта (отображается пустота до перезагрузки)
+    rebind_user_www "$1" 
+    
     ## Суммарная информация
     clear
     printf -v report 'Репозиторий: %s\nДомен: %s\nIP: %s:%s\nSFTP пользователь/гит-ветка: %s\nSFTP пароль: %s' "$git_url" "$1.$domain_name" "$current_ip" "$current_ssh_port" "$1" "$user_pswd"
@@ -421,6 +423,12 @@ create_site() {
     create_kernel_site "$user_name"
 }
 
+## Разово (пере)монтируем каталог, что бы не перезагружать сервер
+rebind_user_www() {
+    umount /home/"$1"/www
+    mount --bind /home/bitrix/ext_www/"$1.$domain_name" /home/"$1"/www
+}
+
 ## Создаём пользователя, обновляем пароль
 create_user() {
     if id "$1" &>/dev/null; then
@@ -440,8 +448,8 @@ create_user() {
         chmod 750 /home/"$1"/
         set_user_random_password "$1"
         add_mount_point "$1"
-        ## Разово монтируем каталог, что бы не перезагружать сервер
-        mount --bind /home/bitrix/ext_www/"$1.$domain_name" /home/"$1"/www
+        
+        rebind_user_www "$1"
     fi
 }
 
@@ -709,7 +717,7 @@ git_pull() {
 
                 ## 2я стратегия - чистим всё
                 git -c credential.helper="$HELPER" fetch --all
-                git reset --hard origin/$current_branch_name
+                git reset --hard origin/"$current_branch_name"
 
                 ## 3я стратегия, лайтовее, не сделает ничего не не отслеживаемыми файлами
                 # git checkout -f donor-branch   # replace bothersome files with tracked versions
@@ -830,7 +838,7 @@ git_init() {
         git branch "$git_branch_master_name" origin/"$git_branch_master_name"
 
         git -c credential.helper="$HELPER" fetch --all
-        git reset --hard origin/$git_branch_master_name
+        git reset --hard origin/"$git_branch_master_name"
 
         git checkout -b "$git_new_branch"
         if [[ $(git_current_local_branch) == "$git_new_branch" ]]; then
