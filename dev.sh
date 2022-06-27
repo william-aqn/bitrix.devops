@@ -226,17 +226,17 @@ select_db_to_clone() {
 ## Скопировать из БД в БД
 clone_db_mysql() {
     if ! check_db_mysql_exists "$1"; then
-        echo -e "БД-источника $1 не существует. Отмена."
+        warning_text "БД-источника $1 не существует. Отмена."
         return 0
     fi
 
     if ! check_db_mysql_exists "$2"; then
-        echo -e "БД-назначения $2 не существует. Отмена."
+        warning_text "БД-назначения $2 не существует. Отмена."
         return 0
     fi
 
     if [[ "$1" == "$2" ]]; then
-        echo -e "Ошибка! Базы должны отличаться $1/$2"
+        warning_text "Ошибка! Базы должны отличаться $1/$2"
         return 0
     fi
     
@@ -260,6 +260,10 @@ clone_db_mysql() {
 
 ## Синхронизируем 2 сайта
 sync_sites() {
+    if [[ "$1" == "$2" ]]; then
+        warning_text "Ошибка! Директории должны отличаться [$1]->[$2]"
+        return 0
+    fi
     # Проверяем находится ли ядро в источнике и существует ли конечный путь
     if test -d "$1/bitrix" && test -d "$1/upload" && test -d "$1"; then
         #echo -e "Начинаем синхронизацию [$1]->[$2], логи в файле /var/log/rsync.log"
@@ -315,7 +319,6 @@ select_site_to_clone() {
                 db_name_to=""
                 clone_site_path_to=""
             fi
-
         fi
     done
 
