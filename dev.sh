@@ -113,9 +113,12 @@ global_ip=$(dig @resolver4.opendns.com myip.opendns.com +short -4)
 ## Текущий локальный IP
 current_ip=$(ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p')
 
+## Текущий ssh порт
+current_ssh_port=$(netstat -tpln | grep 'sshd' | awk '/::/{gsub(":",""); print $4 }')
+
 ## Сравним локальный и глобальынй ip
 check_ip() {
-    echo -e "IP Глобальный $global_ip | IP Локальный $current_ip"
+    echo -e "IP Глобальный $global_ip | IP Локальный $current_ip | SSH порт: $current_ssh_port"
     if [[ "$current_ip" != "$global_ip" ]]; then
         warning_text "IP отличаются!"
         ## TODO: Проверить
@@ -328,6 +331,13 @@ check_openssh_chroot() {
     fi   
 }
 
+## Проверяем ssh порт
+check_openssh_port() {
+    if [[ $current_ssh_port == 22 ]]; then
+        warning_text "Установлен стандартный ssh $current_ssh_port порт. Необходимо изменить."
+    fi
+}
+
 ## Проверим /etc/hosts на наличие домена
 # TODO: Расширить на поддомены
 check_hosts() {
@@ -391,7 +401,7 @@ create_kernel_site() {
 
     ## Суммарная информация
     clear
-    printf -v report 'Репозиторий: %s\nДомен: %s\nIP: %s\nSFTP пользователь/гит-ветка: %s\nSFTP пароль: %s' "$git_url" "$1.$domain_name" "$current_ip" "$1" "$user_pswd"
+    printf -v report 'Репозиторий: %s\nДомен: %s\nIP: %s:%s\nSFTP пользователь/гит-ветка: %s\nSFTP пароль: %s' "$git_url" "$1.$domain_name" "$current_ip" "$current_ssh_port" "$1" "$user_pswd"
     echo "$report" > "/root/.dev.$1.info"
     echo -e "Данные сохранены в файл /root/.dev.$1.info"
     echo -e "$report"
@@ -978,6 +988,8 @@ header() {
     check_size 10
     ## Сразу проверим ip
     check_ip
+    ## Проверим текущий ssh порт
+    check_openssh_port
     ## Информация о домене
     echo -e "Домен: $domain_name"
     ## Информация о репозитории
