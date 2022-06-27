@@ -41,3 +41,8 @@ dev.sh
 На сервере:
 1. Добавляем cron задание для запуска dev.sh с ключём -c в меню скрипта dev.sh
 ```
+
+Однострочная команда для git pull/push/fetch
+```
+set +H && git -c credential.helper="!f() { cat >/dev/null; echo 'username=логин'; echo 'password=пароль'; }; f" fetch
+```
