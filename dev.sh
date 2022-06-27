@@ -308,6 +308,8 @@ select_site_to_clone() {
         if git_check_master_in_dir "$clone_site_path_to"; then
             if [[ "$git_pull_master_allow" == "y" ]]; then
                 warning_text "Обнаружена $git_branch_master_name ветка"
+                # Всё равно защищаем
+                exit
             else
                 warning_text "Обнаружена защищённая $git_branch_master_name ветка. Введите другой путь."
                 db_name_to=""
