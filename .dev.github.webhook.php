@@ -1,6 +1,6 @@
 <?php
 
-define("TOKEN", "TOKEN");
+define("TOKEN", "#TOKEN#");
 $content = file_get_contents("php://input");
 $signature = "sha1=".hash_hmac('sha1', $content, TOKEN);
 
