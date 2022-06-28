@@ -28,12 +28,19 @@ update_url=https://raw.githubusercontent.com/william-aqn/bitrix.devops/main/dev.
 bitrix_home_dir=/home/bitrix/
 
 ## Путь к адресам cloudflare
-CLOUDFLARE_IP_RANGES_FILE_PATH="/etc/nginx/bx/maps/cloudflare.conf"
+CLOUDFLARE_IP_RANGES_FILE_PATH=/etc/nginx/bx/maps/cloudflare.conf
 
 ## Задание для cloudflare crontab
 cloudflare_croncmd="$global_file -c > /dev/null 2>&1"
 cloudflare_cronjob="0 1 * * * $cloudflare_croncmd"
-cloudflare_cronfile="/etc/cron.d/dev.sh.cloudflare"
+cloudflare_cronfile=/etc/cron.d/dev.sh.cloudflare
+
+## webhook
+webhook_subdomain=webhook
+# Заготовка вебкуха
+webhook_download_url=https://raw.githubusercontent.com/william-aqn/bitrix.devops/main/.dev.github.webhook.php
+# Имя вебхука
+webhook_name=".dev.github.webhook.php"
 
 ## Права рута?
 is_root() {
@@ -171,7 +178,7 @@ get_task_id() {
 }
 
 ## Ждём выполнение задания bitrixenv по id
-wait_task(){
+wait_task(){ 
     local task_status=""
     until [[ "$task_status" == "finished" ]]; do
         task_status=$(get_task_status "$1")
@@ -181,8 +188,55 @@ wait_task(){
 }
 
 ## Получить случайную строку
-get_random_string(){
+get_random_string() {
     date +%s | sha256sum | base64 | head -c 12 ; echo
+}
+
+## Проверить наличие вебхука
+check_webhook() {
+    if [ -f /home/bitrix/ext_www/"$webhook_subdomain.$domain_name"/$webhook_name ] ; then 
+        true
+    else
+        false
+    fi
+}
+
+## Установить вебхук
+set_webhook() {
+    webhook_override=""
+
+    local webhook_fill_domain="$webhook_subdomain.$domain_name"
+    local webhook_domain_path=/home/bitrix/ext_www/"$webhook_fill_domain"
+    local webhook_full_path="$webhook_domain_path/$webhook_name"
+
+    if check_webhook; then
+        until [[ "$webhook_override" ]]; do
+            IFS= read -p "Пересоздать вебхук $webhook_full_path? [y/N]: " -r webhook_override
+        done
+        if [[ $webhook_override != "y" ]]; then
+            return 0
+        fi
+    fi
+    
+    if [ ! -d "$webhook_domain_path" ]; then
+        local task=$(/opt/webdir/bin/bx-sites -a create -s "$webhook_fill_domain" -t kernel --charset UTF-8) # --cron
+        local task_id=$(get_task_id "$task")
+        echo -e "Задание $task_id для создания сайта $webhook_fill_domain - запущено, ждём"
+        wait_task "$task_id"
+        echo -e "$webhook_fill_domain - создан"
+    fi
+
+    echo -e "Удаляем лишнее"
+    rm -rf "$webhook_domain_path"
+    mkdir "$webhook_domain_path"
+    echo -e "Скачиваем заготовку для вебхука"
+    wget -O "$webhook_full_path" "$webhook_download_url" && chown bitrix:bitrix "$webhook_full_path"
+    local webhook_token=$(get_random_string)
+    clear
+    warning_text "Webhook token: $webhook_token"
+    echo -e "Можно посмотреть в файле: $webhook_full_path"
+    sed -i "s/#TOKEN#/$webhook_token/" "$webhook_full_path"
+    wait
 }
 
 ## Проверим наличие мастер ветки в директории
@@ -1045,6 +1099,7 @@ menu() {
         echo -e "\t\t3. (Пере)Создать пользователя=гитветку=поддомен=клон основного сайта файлов и бд"
         echo -e "\t\t4. Изменить пароль у существующего пользователя"
         echo -e "\t\t5. Актуализировать сайт"
+        echo -e "\t\t6. (Пере)Создать вебхук"
 
         echo -e "\t\t7. Cloudflare для nginx (определение ip адреса)"
         echo -e "\t\t8. Настройки dev.sh"
@@ -1059,6 +1114,7 @@ menu() {
             "3"|site) create_site; wait;;
             "4"|pwd) change_password_exist_user; wait;;
             "5"|sync) select_site_to_clone_one; wait;;
+            "6"|webhook) set_webhook;;
             
             "7"|cloudflare) menu_cloudflare;;
             "8"|settings) menu_settings;;
