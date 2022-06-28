@@ -234,8 +234,11 @@ set_webhook() {
     local webhook_token=$(get_random_string)
     clear
     warning_text "Webhook token: $webhook_token"
+    echo "Добавить вебхук можно тут: $git_url/settings/hooks" | sed -r "s/\.git//" 
     echo -e "Можно посмотреть в файле: $webhook_full_path"
     sed -i "s/#TOKEN#/$webhook_token/" "$webhook_full_path"
+    wait
+    wait
     wait
 }
 
