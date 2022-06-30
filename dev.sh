@@ -811,7 +811,6 @@ git_pull() {
                     else
                         echo -e "Изменений в мастер ветке нет. Всё хорошо."
                     fi
-                    return 0
                 fi
                 ## https://stackoverflow.com/questions/17404316/the-following-untracked-working-tree-files-would-be-overwritten-by-merge-but-i
                 ## 1я стратегия, не сработает, если есть не отслеживаемые файлы
