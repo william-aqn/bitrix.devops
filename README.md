@@ -1,4 +1,9 @@
-# bitrix.devops
+# CI/CD
+То что в ветке, то и на поддомене.
+*Запуск через вебкух*
+
+
+# Bitrix.Devops
 * Работает только с Bitrixenv
 * Установит Bitrixenv
 * Создаст нужную группу пользователей и предупредит как правильно настроить sshd
@@ -46,7 +51,8 @@ dev.sh
 1. Добавляем cron задание для запуска dev.sh с ключём -c в меню скрипта dev.sh
 ```
 
-Однострочная команда для git pull/push/fetch
+Ленивая команда для git pull/push/fetch
 ```
+su bitrix
 set +H && git -c credential.helper="!f() { cat >/dev/null; echo 'username=логин'; echo 'password=пароль'; }; f" fetch
 ```
