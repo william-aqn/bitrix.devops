@@ -808,7 +808,6 @@ git_pull() {
                         git -c credential.helper="$HELPER" push -u origin "$git_new_branch_master"
                         git checkout "$current_branch_name"
                         warning_text "Не забудьте слить ветку $git_new_branch_master с $git_branch_master_name"
-                        exit
                     else
                         echo -e "Изменений в мастер ветке нет. Всё хорошо."
                     fi
