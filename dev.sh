@@ -795,6 +795,25 @@ git_pull() {
                     git remote set-url origin "$git_url"
                 fi
 
+                ## Аккуратная работа с мастер веткой.
+                if [[ $git_branch_master_name == "$1" ]]; then
+                    echo -e "Проверяем наличие изменений в мастер ветке $git_branch_master_name"
+                    
+                    if [[ $(git status --porcelain) ]]; then
+                        local git_new_branch_master="$git_branch_master_name-""$(date +%d%m%y-%H%I%S)"
+                        warning_text "Обнаружены изменения в мастер ветке. Будет создана новая ветка $git_new_branch_master."
+                        git checkout -b "$git_new_branch_master"
+                        git add .
+                        git commit -m "Master auto commit from server"
+                        git -c credential.helper="$HELPER" push -u origin "$git_new_branch_master"
+                        git checkout "$current_branch_name"
+                        warning_text "Не забудьте слить ветку $git_new_branch_master с $git_branch_master_name"
+                        exit
+                    else
+                        echo -e "Изменений в мастер ветке нет. Всё хорошо."
+                    fi
+                    return 0
+                fi
                 ## https://stackoverflow.com/questions/17404316/the-following-untracked-working-tree-files-would-be-overwritten-by-merge-but-i
                 ## 1я стратегия, не сработает, если есть не отслеживаемые файлы
                 # git reset --hard
