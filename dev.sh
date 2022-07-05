@@ -795,6 +795,10 @@ git_pull() {
                     git remote set-url origin "$git_url"
                 fi
 
+                ##  Устанавливаем настройки
+                git config --local user.name "server"
+                git config --local user.email "$git_user"
+
                 ## Аккуратная работа с мастер веткой.
                 if [[ $git_branch_master_name == "$1" ]]; then
                     echo -e "Проверяем наличие изменений в мастер ветке $git_branch_master_name"
@@ -923,7 +927,7 @@ git_init() {
 
     ##  Устанавливаем настройки
     git config --global user.name "server"
-    git config --global user.email "server@localhost"
+    git config --global user.email "$git_user"
     git config --global push.default simple
 
     ##  Создаём новый гит
