@@ -51,8 +51,15 @@ dev.sh
 1. Добавляем cron задание для запуска dev.sh с ключём -c в меню скрипта dev.sh
 ```
 
+Во время разработки, для различия копий prod/staging, используйте файл
+```
+/home/bitrix/www/bitrix/.isprod
+```
+
 Ленивая команда для git pull/push/fetch
 ```
 su bitrix
 set +H && git -c credential.helper="!f() { cat >/dev/null; echo 'username=логин'; echo 'password=пароль'; }; f" fetch
 ```
+
+# Внимание! Удаление ветки удалит всё на поддомене. Осторожнее.
