@@ -340,25 +340,25 @@ console_site_clone() {
     db_name_from="$(get_bitrix_mysql_credentials_db_name "$clone_site_path_from")"
     if [[ $db_name_from == "" ]]; then
         warning_text "#BD_FROM_NOT_FOUND# $clone_site_path_from"
-        exit
+        exit 1
     fi
 
     db_name_to="$(get_bitrix_mysql_credentials_db_name "$clone_site_path_to")"
     if [[ $db_name_to == "" ]]; then
         warning_text "#BD_TO_NOT_FOUND# $clone_site_path_to"
-        exit
+        exit 2
     fi
 
     ## Защищаем мастер ветку
     if git_check_master_in_dir "$clone_site_path_to"; then
         warning_text "#MASTER_TREE_DETECTED#"
-        exit
+        exit 3
     fi
 
     clone_db_mysql "$db_name_from" "$db_name_to"
     sync_sites "$clone_site_path_from" "$clone_site_path_to"
 
-    cd "$clone_site_path_to" || exit
+    cd "$clone_site_path_to" || exit 4
     current_branch_name=$(git symbolic-ref --short -q HEAD)
     echo -e "Git: $current_branch_name"
     if [[ "$current_branch_name" != "" ]]; then
