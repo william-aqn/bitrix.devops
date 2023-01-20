@@ -357,6 +357,20 @@ console_site_clone() {
 
     clone_db_mysql "$db_name_from" "$db_name_to"
     sync_sites "$clone_site_path_from" "$clone_site_path_to"
+
+    cd "$clone_site_path_to" || exit
+    current_branch_name=$(git symbolic-ref --short -q HEAD)
+    if [[ "$current_branch_name" != "" ]]; then
+        git_get_credential_helper
+        ##  Устанавливаем настройки
+        git config --local user.name "server"
+        git config --local user.email "$git_user"
+        ##  Принимаем изменения
+        git -c credential.helper="$HELPER" fetch --all
+        git reset --hard origin/"$current_branch_name"
+        warning_text "#GIT_OK#"
+    fi
+
     warning_text "#OPERATION_OK#"
 }
 
