@@ -360,6 +360,7 @@ console_site_clone() {
 
     cd "$clone_site_path_to" || exit
     current_branch_name=$(git symbolic-ref --short -q HEAD)
+    echo -e "Git: $current_branch_name"
     if [[ "$current_branch_name" != "" ]]; then
         git_get_credential_helper
         ##  Устанавливаем настройки
