@@ -335,6 +335,31 @@ sync_sites() {
     fi
 }
 
+## Актуализация из консоли
+console_site_clone() {
+    db_name_from="$(get_bitrix_mysql_credentials_db_name "$clone_site_path_from")"
+    if [[ $db_name_from == "" ]]; then
+        warning_text "#BD_FROM_NOT_FOUND# $clone_site_path_from"
+        exit
+    fi
+
+    db_name_to="$(get_bitrix_mysql_credentials_db_name "$clone_site_path_to")"
+    if [[ $db_name_to == "" ]]; then
+        warning_text "#BD_TO_NOT_FOUND# $clone_site_path_to"
+        exit
+    fi
+
+    ## Защищаем мастер ветку
+    if git_check_master_in_dir "$clone_site_path_to"; then
+        warning_text "#MASTER_TREE_DETECTED#"
+        exit
+    fi
+
+    clone_db_mysql "$db_name_from" "$db_name_to"
+    sync_sites "$clone_site_path_from" "$clone_site_path_to"
+    warning_text "#OPERATION_OK#"
+}
+
 ## Выбор сайта для актуализации
 select_site_to_clone() {
     db_name_from=""
@@ -1059,6 +1084,7 @@ set_cloudflare() {
 
 ## Для консольного запуска
 usage() {
+    echo -e "-u {path_to_update} - актуализировать определённый сайт"
     echo -e "-b {git branch name} - для запуска процедуры git pull определённой ветки"
     echo -e "-s {минимальный процент для вывода сообщения} - проверить свободное место"
     echo -e "-c - cloudflare nginx ip set (только от root)"
@@ -1220,9 +1246,15 @@ if load_config; then
     check_config
 
     ## Если запустили с флагами
-    while getopts "hcb:s:" flag
+    while getopts "hcb:s:u:" flag
     do
         case "$flag" in
+            u) 
+                clone_site_path_from="/home/bitrix/www"
+                clone_site_path_to=${OPTARG};
+                console_site_clone;
+                exit
+            ;;
             b) branch=${OPTARG}; git_pull "$branch"; exit;;
             s) free_limit=${OPTARG}; clear; check_size "$free_limit"; exit;;
             c) 
