@@ -24,13 +24,15 @@ jobs:
   create-pull-request-into-main:
     needs: run-selenium-tests
     runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.pull.outputs.url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
           
-      - name: Create pull into main
+      - name: Create pull into master
         id: pull
         uses: devops-infra/action-pull-request@v0.5.3
         with:
@@ -38,17 +40,27 @@ jobs:
           title: ${{ github.event.commits[0].message }}
           assignee: ${{ github.actor }}
           label: automatic
-          source_branch: stage
-          target_branch: main
+          source_branch: staging
+          target_branch: master
+          
+  send-notify:
+    needs: create-pull-request-into-main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
           
       - name: send telegram message on push
-        if: ${{ steps.pull.outputs.url.to }}
+        # if: ${{ needs.create-pull-request-into-main.outputs.url }}
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
-            URL: ${{ steps.pull.outputs.url.to }}
+            URL: ${{ needs.create-pull-request-into-main.outputs.url }}
+            * ${{ steps.pull.outputs.url }}
             ${{ github.actor }} created commit:
             Commit message: ${{ github.event.commits[0].message }}
             Repository: ${{ github.repository }}
