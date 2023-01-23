@@ -1,0 +1,43 @@
+name: Notify
+
+on:
+  workflow_call:
+    inputs:
+      to:
+        required: true
+        type: string
+        description: TG_CHAT_ID
+        
+      url:
+        required: true
+        type: string
+        description: url to pull request
+        
+  workflow_dispatch:
+    inputs:
+      to:
+        required: true
+        type: string
+        description: TG_CHAT_ID
+        
+      url:
+        required: true
+        type: string
+        description: url to pull request
+jobs:
+  send:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: send telegram message on push
+        if: inputs.to != ""
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ inputs.to }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            URL: ${{ inputs.url }}
+            ${{ github.actor }} created commit:
+            Commit message: ${{ github.event.commits[0].message }}
+            Repository: ${{ github.repository }}
+            See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}

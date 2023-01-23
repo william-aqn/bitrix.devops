@@ -1,0 +1,27 @@
+name: Selenium
+
+on:
+  workflow_call:
+    inputs:
+      server:
+        required: true
+        type: string
+        description: Select server to test
+
+  workflow_dispatch:
+    inputs:
+      server:
+        type: choice
+        description: Select server to test
+        options:
+          - stage.site.local
+          - site.local
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run this
+        shell: bash
+        run: echo ${{ inputs.server }}

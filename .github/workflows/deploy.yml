@@ -1,0 +1,55 @@
+name: Deploy
+
+on:
+  pull_request:
+    branches: ["stage"]
+    types: [closed]
+
+  workflow_dispatch:
+
+jobs:
+  update-stage-server:
+    if: github.event.pull_request.merged == true
+    uses: ./.github/workflows/update.yml
+    secrets: inherit # pass all secrets
+    with:
+      server: "stage.site.local"
+
+  run-selenium-tests:
+    uses: ./.github/workflows/selenium.yml
+    needs: update-stage-server
+    with:
+      server: "stage.site.local"
+
+  create-pull-request-into-main:
+    needs: run-selenium-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          
+      - name: Create pull into main
+        id: pull
+        uses: devops-infra/action-pull-request@v0.5.3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          title: ${{ github.event.commits[0].message }}
+          assignee: ${{ github.actor }}
+          label: automatic
+          source_branch: stage
+          target_branch: main
+          
+      - name: send telegram message on push
+        if: steps.pull.outputs.url.to != ''
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            URL: ${{ steps.pull.outputs.url.to }}
+            ${{ github.actor }} created commit:
+            Commit message: ${{ github.event.commits[0].message }}
+            Repository: ${{ github.repository }}
+            See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}

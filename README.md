@@ -1,6 +1,6 @@
 # CI/CD
 То что в ветке, то и на поддомене.
-*Запуск через вебкук*
+*Запуск через вебкук и/или action*
 
 
 # Bitrix.Devops
@@ -17,7 +17,7 @@
 * Добавлена поддержка подстановки настоящего ip адреса от cloudflare в nginx
 * Автоматическое создание поддомена для вебхука, размещение вебхука, генерация ключа для вебхука, вывод ссылки и инструкции для github.com
 * Аккуратная работа с мастер веткой (на сколько это возможно)
-
+* Набор **Github Actions** для реализации схемы [pull_request]->stage->[update]->[tests_selenium]->[telegram_notify]->main
 
 Установка
 ```
@@ -29,6 +29,7 @@ dev.sh
 ```
 Ключи для запуска
 ```
+-u {site_name} - папка в ext_www для актуализации сайта
 -b {git branch name} - для запуска процедуры git pull 
 определённой ветки
 -s {минимальный процент для вывода сообщения} - проверить свободное место
@@ -60,6 +61,17 @@ dev.sh
 ```
 su bitrix
 set +H && git -c credential.helper="!f() { cat >/dev/null; echo 'username=логин'; echo 'password=пароль'; }; f" fetch
+```
+
+Для Actions заполнить secrets
+```
+secrets.GITHUB_TOKEN - с правами на создание пул реквест и чтение репозитория
+secrets.TELEGRAM_TO - id чата телеграмм
+secrets.TELEGRAM_TOKEN - токен бота
+secrets.HOST - ip сервера
+secrets.PORT - ssh порт сервера
+secrets.LOGIN - root (только у него есть нужные права)
+secrets.PASSWORD / secrets.KEY - пароль или rsa ключ
 ```
 
 # Внимание! Удаление ветки удалит всё на поддомене. Осторожнее.

@@ -1,0 +1,39 @@
+name: Update
+
+on:
+  workflow_call:
+    inputs:
+      server:
+        required: true
+        type: string
+        description: Select server to update
+
+  workflow_dispatch:
+    inputs:
+      server:
+        type: choice
+        description: Select server to update
+        options:
+          - stage.site.local
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: print-server-url
+        shell: bash
+        run: echo Server url = ${{ inputs.server }} secret = ${{ secrets.HOST }}
+
+      - uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SHOST }}
+          username: ${{ secrets.LOGIN }}
+          # key: ${{ secrets.KEY }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          script_stop: true
+          script: |
+            dev.sh -u "/home/bitrix/ext_www/${{ inputs.server }}"
+            su -c '/usr/bin/php -f /home/bitrix/ext_www/${{ inputs.server }}/local/php_interface/clear_cache.php' bitrix
+
