@@ -22,6 +22,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Run this
+      - name: Selected server
         shell: bash
         run: echo ${{ inputs.server }}
+        
+      - name: Trigger Jenkins Job
+        uses: toptal/jenkins-job-trigger-action@master
+        with:
+          jenkins_url: ${{ secrets.JENKINS_HOST }}
+          jenkins_user: ${{ secrets.JENKINS_USER }}
+          jenkins_token: ${{ secrets.JENKINS_TOKEN }}
+          job_name: "site_site"
+          job_timeout: "600"
+          job_params: |
+            {
+              "URL": "https://${{ inputs.server }}"
+            }

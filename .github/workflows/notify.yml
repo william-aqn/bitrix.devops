@@ -29,6 +29,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
       - name: send telegram message on push
         if: inputs.url
         uses: appleboy/telegram-action@master
@@ -36,8 +41,7 @@ jobs:
           to: ${{ inputs.to }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
-            URL: ${{ inputs.url }}
-            ${{ github.actor }} created commit:
-            Commit message: ${{ github.event.commits[0].message }}
-            Repository: ${{ github.repository }}
+            Pull: ${{ inputs.url }}
+            *
+            ${{ github.actor }} created commit
             See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}

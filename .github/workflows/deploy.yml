@@ -1,5 +1,5 @@
 name: Deploy
-
+#description: Auto run after merge pull request into staging branch
 on:
   pull_request:
     branches: ["stage"]
@@ -11,13 +11,14 @@ jobs:
   update-stage-server:
     if: github.event.pull_request.merged == true
     uses: ./.github/workflows/update.yml
-    secrets: inherit # pass all secrets
+    secrets: inherit
     with:
       server: "stage.site.local"
 
   run-selenium-tests:
     uses: ./.github/workflows/selenium.yml
     needs: update-stage-server
+    secrets: inherit
     with:
       server: "stage.site.local"
 
@@ -28,7 +29,7 @@ jobs:
       url: ${{ steps.pull.outputs.url }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           
@@ -40,28 +41,13 @@ jobs:
           title: ${{ github.event.commits[0].message }}
           assignee: ${{ github.actor }}
           label: automatic
-          source_branch: staging
-          target_branch: master
-          
+          source_branch: stage
+          target_branch: main
+
   send-notify:
+    uses: ./.github/workflows/notify.yml
     needs: create-pull-request-into-main
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          
-      - name: send telegram message on push
-        # if: ${{ needs.create-pull-request-into-main.outputs.url }}
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: |
-            URL: ${{ needs.create-pull-request-into-main.outputs.url }}
-            * ${{ steps.pull.outputs.url }}
-            ${{ github.actor }} created commit:
-            Commit message: ${{ github.event.commits[0].message }}
-            Repository: ${{ github.repository }}
-            See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}
+    secrets: inherit
+    with:
+      to: ${{ secrets.TELEGRAM_TO }}
+      url: ${{ needs.create-pull-request-into-main.outputs.url }}

@@ -63,15 +63,18 @@ su bitrix
 set +H && git -c credential.helper="!f() { cat >/dev/null; echo 'username=логин'; echo 'password=пароль'; }; f" fetch
 ```
 
-Для Actions заполнить secrets
+Для Actions заполнить secrets и видоизменить экшены под свои нужды/домены
 ```
-secrets.GITHUB_TOKEN - с правами на создание пул реквест и чтение репозитория
-secrets.TELEGRAM_TO - id чата телеграмм
-secrets.TELEGRAM_TOKEN - токен бота
-secrets.HOST - ip сервера
-secrets.PORT - ssh порт сервера
-secrets.LOGIN - root (только у него есть нужные права)
-secrets.PASSWORD / secrets.KEY - пароль или rsa ключ
+GITHUB_TOKEN - с правами на создание пул реквест и чтение репозитория
+TELEGRAM_TO - id чата телеграмм
+TELEGRAM_TOKEN - токен бота
+HOST - ip сервера
+PORT - ssh порт сервера
+LOGIN - root (только у него есть нужные права)
+PASSWORD / secrets.KEY - пароль или rsa ключ
+JENKINS_HOST - сервер с тестами
+JENKINS_USER - логин от тестов
+JENKINS_TOKEN - токен от тестов
 ```
 
 # Внимание! Удаление ветки удалит всё на поддомене. Осторожнее.
