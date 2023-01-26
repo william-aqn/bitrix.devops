@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Проверено на bitrixenv 7.5.2
-version=1.2
+version=1.3
 
 ## Группа пользователей для разработчиков
 user_group=dev-group
