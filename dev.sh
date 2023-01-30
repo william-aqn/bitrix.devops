@@ -369,6 +369,9 @@ console_site_clone() {
         ##  Принимаем изменения
         git -c credential.helper="$HELPER" fetch --all
         git reset --hard origin/"$current_branch_name"
+        ## Сбрасываем права
+        chown -R bitrix:bitrix "$PWD"
+        cd "$HOME" > /dev/null || exit
         warning_text "#GIT_OK#"
     fi
 
