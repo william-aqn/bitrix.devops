@@ -8,6 +8,8 @@ user_group=dev-group
 
 ## Путь к файлу конфигурации
 config_file=/home/bitrix/.dev.cnf
+## Путь к файлу конфигурации для стороннего сервера
+remote_file=/root/.dev.remote.cnf
 
 ## Путь к mysql доступам
 mysql_root_config_file=/root/.my.cnf
@@ -29,6 +31,7 @@ bitrix_home_dir=/home/bitrix/
 
 ## Путь к адресам cloudflare
 CLOUDFLARE_IP_RANGES_FILE_PATH=/etc/nginx/bx/maps/cloudflare.conf
+CLOUDFLARE_DIRECT_BLOCK_FILE_PATH=/etc/nginx/bx/maps/cloudflare_direct_block.conf
 
 ## Задание для cloudflare crontab
 cloudflare_croncmd="$global_file -c > /dev/null 2>&1"
@@ -44,7 +47,7 @@ webhook_name=".dev.github.webhook.php"
 
 ## Права рута?
 is_root() {
-    if [ "$EUID" -ne 0 ]; then 
+    if [ "$EUID" -ne 0 ]; then
         false
     else
         true
@@ -53,7 +56,7 @@ is_root() {
 
 ## Пауза
 wait() {
-    read -t 3 -r > /dev/null
+    read -t 3 -r >/dev/null
 }
 
 ## Заглушка
@@ -63,7 +66,7 @@ no_menu() {
 
 ## Линия
 line() {
-    printf "\x2d%.0s"  $(seq 1 85)
+    printf "\x2d%.0s" $(seq 1 85)
     printf "\n"
 }
 
@@ -83,7 +86,7 @@ install_bitrixenv() {
 
 ## Проверяем команду arg1 на существование
 check_command() {
-    if ! command -v "$1" > /dev/null; then
+    if ! command -v "$1" >/dev/null; then
         echo -e "Command $1 not found!"
         false
     else
@@ -109,7 +112,7 @@ init_service_tools
 init_bitrixenv() {
     if test -f "$bitrix_helper_file"; then
         . "${bitrix_helper_file}"
-    else 
+    else
         install_bitrixenv
     fi
 }
@@ -133,7 +136,7 @@ check_ip() {
     fi
 }
 
-## Проверяем наличие служебный скриптов 
+## Проверяем наличие служебный скриптов
 check_install_master_site() {
     if test -f "$bitrix_home_dir"www/restore.php || test -f "$bitrix_home_dir"www/bitrixsetup.php; then
         warning_text "Обнаружены служебные скрипты в "$bitrix_home_dir"www/, возможно Битрикс не установлен. Исправьте для продолжения работы."
@@ -144,7 +147,7 @@ check_install_master_site() {
 
 ## Проверить dns A поддомена
 check_dns_a_record() {
-   dig "$1" A +short | xargs | sed -e 's/ /,/g'
+    dig "$1" A +short | xargs | sed -e 's/ /,/g'
 }
 
 ## Проверить dns A поддомена (ручной ввод)
@@ -178,7 +181,7 @@ get_task_id() {
 }
 
 ## Ждём выполнение задания bitrixenv по id
-wait_task(){ 
+wait_task() {
     local task_status=""
     until [[ "$task_status" == "finished" ]]; do
         task_status=$(get_task_status "$1")
@@ -189,12 +192,13 @@ wait_task(){
 
 ## Получить случайную строку
 get_random_string() {
-    date +%s | sha256sum | base64 | head -c 12 ; echo
+    date +%s | sha256sum | base64 | head -c 12
+    echo
 }
 
 ## Проверить наличие вебхука
 check_webhook() {
-    if [ -f /home/bitrix/ext_www/"$webhook_subdomain.$domain_name"/$webhook_name ] ; then 
+    if [ -f /home/bitrix/ext_www/"$webhook_subdomain.$domain_name"/$webhook_name ]; then
         true
     else
         false
@@ -217,7 +221,7 @@ set_webhook() {
             return 0
         fi
     fi
-    
+
     if [ ! -d "$webhook_domain_path" ]; then
         local task=$(/opt/webdir/bin/bx-sites -a create -s "$webhook_fill_domain" -t kernel --charset UTF-8) # --cron
         local task_id=$(get_task_id "$task")
@@ -234,7 +238,7 @@ set_webhook() {
     local webhook_token=$(get_random_string)
     clear
     warning_text "Webhook token: $webhook_token"
-    echo "Добавить вебхук можно тут: $git_url/settings/hooks" | sed -r "s/\.git//" 
+    echo "Добавить вебхук можно тут: $git_url/settings/hooks" | sed -r "s/\.git//"
     echo -e "Можно посмотреть в файле: $webhook_full_path"
     sed -i "s/#TOKEN#/$webhook_token/" "$webhook_full_path"
     wait
@@ -244,7 +248,7 @@ set_webhook() {
 
 ## Проверим наличие мастер ветки в директории
 git_check_master_in_dir() {
-    cd "${1}" || false;
+    cd "${1}" || false
     if [[ "$(git symbolic-ref --short -q HEAD)" == "$git_branch_master_name" ]]; then
         true
     else
@@ -254,7 +258,7 @@ git_check_master_in_dir() {
 
 ## Проверка на существование БД
 check_db_mysql_exists() {
-    if [ -f /var/lib/mysql/"$1" ] ; then 
+    if [ -f /var/lib/mysql/"$1" ]; then
         return 1
     fi
     return 0
@@ -296,7 +300,7 @@ clone_db_mysql() {
         warning_text "Ошибка! Базы должны отличаться $1/$2"
         return 0
     fi
-    
+
     if test -f "$mysql_root_config_file"; then
         . "$mysql_root_config_file"
 
@@ -371,7 +375,7 @@ console_site_clone() {
         git reset --hard origin/"$current_branch_name"
         ## Сбрасываем права
         chown -R bitrix:bitrix "$PWD"
-        cd "$HOME" > /dev/null || exit
+        cd "$HOME" >/dev/null || exit
         warning_text "#GIT_OK#"
     fi
 
@@ -438,7 +442,6 @@ set_user_random_password() {
     echo -e "Для $1 установлен пароль: $user_pswd"
 }
 
-
 ## Проверим наличие группы для разработчиков
 init_user_group() {
     if ! grep -q $user_group /etc/group; then
@@ -456,7 +459,7 @@ check_openssh_chroot() {
         echo "Match Group $user_group"
         echo "ChrootDirectory /home/%u"
         line
-    fi   
+    fi
 }
 
 ## Проверяем ssh порт
@@ -472,18 +475,18 @@ check_hosts() {
     if ! grep -q -F "$domain_name" /etc/hosts; then
         warning_text "Домен $domain_name отсутствует в файле /etc/hosts"
         line
-    fi   
+    fi
 }
 
 ## Добавляем точку монтирования для пользователя в его домашний каталог
 add_mount_point() {
     if ! grep -q "/home/$1/www" /etc/fstab; then
         {
-            printf '\n# dev.sh %s start' "$1";
-            printf '\n/home/bitrix/ext_www/%s /home/%s/www none bind 0 0' "$1.$domain_name" "$1";
-            printf '\n# dev.sh %s end' "$1";
-            printf '\n'; ## Важно!
-        } >> /etc/fstab
+            printf '\n# dev.sh %s start' "$1"
+            printf '\n/home/bitrix/ext_www/%s /home/%s/www none bind 0 0' "$1.$domain_name" "$1"
+            printf '\n# dev.sh %s end' "$1"
+            printf '\n' ## Важно!
+        } >>/etc/fstab
     fi
 }
 
@@ -527,12 +530,12 @@ create_kernel_site() {
     ## Создаём пользователя
     create_user "$1"
     ## Фиксим монтирование директории при пересоздании сайта (отображается пустота до перезагрузки)
-    rebind_user_www "$1" 
-    
+    rebind_user_www "$1"
+
     ## Суммарная информация
     clear
     printf -v report 'Репозиторий: %s\nДомен: %s\nIP: %s:%s\nSFTP пользователь/гит-ветка: %s\nSFTP пароль: %s' "$git_url" "$1.$domain_name" "$current_ip" "$current_ssh_port" "$1" "$user_pswd"
-    echo "$report" > "/root/.dev.$1.info"
+    echo "$report" >"/root/.dev.$1.info"
     echo -e "Данные сохранены в файл /root/.dev.$1.info"
     echo -e "$report"
     wait
@@ -576,7 +579,7 @@ create_user() {
         chmod 750 /home/"$1"/
         set_user_random_password "$1"
         add_mount_point "$1"
-        
+
         rebind_user_www "$1"
     fi
 }
@@ -588,7 +591,7 @@ change_password_exist_user() {
         IFS= read -p "Введите имя пользователя: " -r user_name
         if id "$user_name" &>/dev/null; then
             set_user_random_password "$user_name"
-        else 
+        else
             echo -e "Пользователя не существует"
             user_name=""
         fi
@@ -618,7 +621,7 @@ update_self() {
 
 ## Проверяем свободное место
 check_size() {
-    local used=$( df -h / --output=pcent | awk 'END{ print $(NF-1) }' | tr -d '%' )
+    local used=$(df -h / --output=pcent | awk 'END{ print $(NF-1) }' | tr -d '%')
     local free=$((100 - used))
     if [[ free -lt $1 ]]; then
         echo -e "Мало свободного места - $free%"
@@ -630,7 +633,7 @@ git_get_credential_helper() {
     printf -v HELPER "!f() { cat >/dev/null; echo 'username=%s'; echo 'password=%s'; }; f" "$git_user" "$git_pass"
 }
 
-## Вернёт errlvl 0 - если гит доступен 
+## Вернёт errlvl 0 - если гит доступен
 git_remote_url_reachable() {
     git_get_credential_helper
     git -c credential.helper="$HELPER" ls-remote "$1" CHECK_GIT_REMOTE_URL_REACHABILITY >/dev/null 2>&1
@@ -639,14 +642,14 @@ git_remote_url_reachable() {
 ## Сохраняем конфиг
 save_config() {
     {
-        printf 'git_url=%s\n' "${git_url}";
-        printf 'git_user=%s\n' "${git_user}";
-        printf 'git_pass=%s\n' "${git_pass}";
-        printf 'git_branch_master_name=%s\n' "${git_branch_master_name}";
-        printf 'git_pull_master_allow=%s\n' "${git_pull_master_allow}";
-        printf 'domain_name=%s\n' "${domain_name}";
-        printf 'bitrix_home_dir=%s\n' "${bitrix_home_dir}";
-    } > $config_file
+        printf 'git_url=%s\n' "${git_url}"
+        printf 'git_user=%s\n' "${git_user}"
+        printf 'git_pass=%s\n' "${git_pass}"
+        printf 'git_branch_master_name=%s\n' "${git_branch_master_name}"
+        printf 'git_pull_master_allow=%s\n' "${git_pull_master_allow}"
+        printf 'domain_name=%s\n' "${domain_name}"
+        printf 'bitrix_home_dir=%s\n' "${bitrix_home_dir}"
+    } >$config_file
     ## Обновляем права на файлы
     chown bitrix:bitrix $config_file
 }
@@ -674,22 +677,73 @@ clear_config() {
 }
 
 ## Проверяем необходимые данные в конфигурационном файле
-check_config(){
-    if [[ -z $git_url 
-        || -z $git_user 
-        || -z $git_pass
-        || -z $git_branch_master_name 
-        || -z $git_pull_master_allow 
-        || -z $bitrix_home_dir 
-        || -z $domain_name 
-    ]]; then
+check_config() {
+    if [[ -z $git_url ||
+        -z $git_user ||
+        -z $git_pass ||
+        -z $git_branch_master_name ||
+        -z $git_pull_master_allow ||
+        -z $bitrix_home_dir ||
+        -z $domain_name ]] \
+        ; then
         if ! is_root; then
             echo "Надо заполнить файл с конфигурацией, запустите под root пользователем"
             exit
         fi
         echo -e "Надо заполнить файл с конфигурацией"
         first_run
-    fi  
+    fi
+}
+
+## Сохраняем конфиг
+save_remote() {
+    {
+        printf 'remote_user=%s\n' "${remote_user}"
+        printf 'remote_password=%s\n' "${remote_password}"
+        printf 'remote_host=%s\n' "${remote_host}"
+        printf 'remote_port=%s\n' "${remote_port}"
+        printf 'remote_mysql_user=%s\n' "${remote_mysql_user}"
+        printf 'remote_mysql_password=%s\n' "${remote_mysql_password}"
+    } >$remote_file
+}
+## Загружаем конфиг стороннего сервера
+load_remote() {
+    if test -f "$remote_file"; then
+        echo "Конфигурационный файл - $remote_file существует"
+        . "${remote_file}"
+        true
+    else
+        echo "Конфигурационный файл - $remote_file не существует"
+        false
+    fi
+}
+
+## Очищаем настройки стороннего сервера
+clear_remote() {
+    remote_user=""
+    remote_password=""
+    remote_host=""
+    remote_port=""
+    remote_mysql_user=""
+    remote_mysql_password=""
+}
+
+## Проверяем необходимые данные в конфигурационном файле
+check_remote() {
+    if [[ -z $remote_user ||
+        -z $remote_password ||
+        -z $remote_host ||
+        -z $remote_port ||
+        -z $remote_mysql_user ||
+        -z $remote_mysql_password ]] \
+        ; then
+        if ! is_root; then
+            echo "Надо заполнить файл с конфигурацией, запустите под root пользователем"
+            exit
+        fi
+        echo -e "Надо заполнить файл с конфигурацией"
+        remote_first_run
+    fi
 }
 
 ## Показать меню в зависимости от прав
@@ -700,6 +754,101 @@ select_menu() {
         menu_bitrix
     fi
 }
+
+remote_server_reachable() {
+    status=$(sshpass -p $remote_password ssh -o StrictHostKeyChecking=no $remote_user@$remote_host -q "echo ok" 2>&1)
+    if [[ $status == ok ]]; then
+        true
+    else
+        false
+    fi
+}
+
+remote_mysql_reachable() {
+    status=$(sshpass -p $remote_password ssh -tt -o StrictHostKeyChecking=no $remote_user@$remote_host -q "mysql -u $remote_mysql_user -p$remote_mysql_password -e 'SHOW DATABASES;'" 2>&1)
+    # Check the connection status
+    if [ $? -eq 0 ]; then
+        true
+    else
+        false
+    fi
+}
+
+remote_first_run() {
+    until [[ "$remote_status" == "ok" ]]; do
+
+        until [[ "$remote_host" ]]; do
+            IFS= read -p "IP: " -r remote_host
+        done
+
+        until [[ "$remote_port" ]]; do
+            IFS= read -p "Порт: " -r remote_port
+        done
+
+        until [[ "$remote_user" ]]; do
+            IFS= read -p "Логин: " -r remote_user
+        done
+
+        until [[ "$remote_password" ]]; do
+            IFS= read -p "Пароль от $remote_user: " -r remote_password
+        done
+
+        if remote_server_reachable; then
+            echo "Сервер $remote_host:$remote_port доступен"
+            remote_status="ok"
+        else
+            echo "Сервер $remote_host:$remote_port не доступен"
+            remote_status="err"
+            remote_host=""
+            remote_port=""
+            remote_user=""
+            remote_password=""
+        fi
+    done
+
+    until [[ "$remote_mysql_status" == "ok" ]]; do
+        until [[ "$remote_mysql_user" ]]; do
+            IFS= read -p "Логин mysql: " -r remote_mysql_user
+        done
+
+        until [[ "$remote_mysql_password" ]]; do
+            IFS= read -p "Пароль mysql: " -r remote_mysql_password
+        done
+
+        if remote_mysql_reachable; then
+            echo "Mysql на сервере $remote_host:$remote_port доступен"
+            remote_mysql_status="ok"
+        else
+            echo "Mysql на сервере $remote_host:$remote_port не доступен"
+            remote_mysql_status="err"
+            remote_mysql_user=""
+            remote_mysql_password=""
+        fi
+    done
+
+    ## Сохраняем настройки
+    save_remote
+}
+
+# Переезд на другой сервер
+run_remote() {
+    load_remote
+    remote_first_run
+    until [[ "$remote_allow_start" ]]; do
+        IFS= read -p "Запустить синхронизацию? [y/N]: " -r remote_allow_start
+    done
+    if [[ $remote_allow_start == "y" ]]; then
+        remote_allow_start=""
+        remote_dir_from="/home/bitrix/www/"
+        remote_dir_to="/home/bitrix/www/"
+        sshpass -p $remote_password rsync -v -ae "ssh -p $remote_port" --delete --exclude .git --exclude /bitrix/.settings.php --exclude /bitrix/.isprod --exclude /bitrix/.settings_extra.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/html_pages --exclude bitrix/managed_cache --exclude bitrix/stack_cache --exclude local/logs --progress "$remote_dir_from" "$remote_user@$remote_host:$remote_dir_to"
+        echo "Синхронизация файлов завершена, сейчас начнётся перенос mysql"
+        wait
+        
+    fi
+}
+# run_remote
+# exit
 
 ## Задаём настройки
 first_run() {
@@ -727,7 +876,7 @@ first_run() {
             git_pass=""
         fi
     done
-    
+
     git_branch_list
     until [[ "$git_branch_master_name" ]]; do
         IFS= read -p "Название основной ветки? (master): " -r git_branch_master_name
@@ -743,9 +892,9 @@ first_run() {
 
     until [[ "$domain_name" ]]; do
         IFS= read -p "Основной домен (без http(s), например yandex.ru): " -r domain_name
-        domain_name=$(sed -E -e 's_.*://([^/@]*@)?([^/:]+).*_\2_' <<< "$domain_name")
+        domain_name=$(sed -E -e 's_.*://([^/@]*@)?([^/:]+).*_\2_' <<<"$domain_name")
     done
-    
+
     ## Сохраняем настройки
     save_config
 
@@ -776,33 +925,32 @@ git_list() {
         printf -v result "%s\t%s\t%s" "$result" "Домен" "DNS-A"
     fi
 
-    for dir in $(find $bitrix_home_dir -maxdepth 3 -type d -name ".git")
-        do cd "${dir%/*}" || exit
-            current_branch_name=$(git symbolic-ref --short -q HEAD)
+    for dir in $(find $bitrix_home_dir -maxdepth 3 -type d -name ".git"); do
+        cd "${dir%/*}" || exit
+        current_branch_name=$(git symbolic-ref --short -q HEAD)
 
-            ## Текущий коммит
-            current_commit=$(git show -s --format='%h / %ai / %s')
+        ## Текущий коммит
+        current_commit=$(git show -s --format='%h / %ai / %s')
 
-            ## Проверяем наличие A записи у доменов
-            local dns=""
-            if [[ $1 == "dns" ]]; then
-                local domain=$(pwd | sed 's#.*/##')""
-                ## Переопределяем для основного домена
-                if [[ $domain == "www" ]]; then
-                    domain="$domain_name"
-                fi
-                printf -v dns "%s\t%s" "$domain" "$(check_dns_a_record "$domain")"
+        ## Проверяем наличие A записи у доменов
+        local dns=""
+        if [[ $1 == "dns" ]]; then
+            local domain=$(pwd | sed 's#.*/##')""
+            ## Переопределяем для основного домена
+            if [[ $domain == "www" ]]; then
+                domain="$domain_name"
             fi
-            
-            ## Ячейка таблицы
-            printf -v result "%s\n%s\t%s\t%s\t%s\n" "$result" "$current_branch_name" "$current_commit" "$PWD" "$dns"
-            cd - > /dev/null || exit
-        done
+            printf -v dns "%s\t%s" "$domain" "$(check_dns_a_record "$domain")"
+        fi
+
+        ## Ячейка таблицы
+        printf -v result "%s\n%s\t%s\t%s\t%s\n" "$result" "$current_branch_name" "$current_commit" "$PWD" "$dns"
+        cd - >/dev/null || exit
+    done
     ## Строим таблицу
     echo "$result" | sed 's/\t/,|,/g' | column -s ',' -t
     cd "$HOME" || exit
 }
-
 
 ## Запуск процедуры принятия коммитов
 git_pull() {
@@ -813,83 +961,83 @@ git_pull() {
     fi
 
     echo -e "Пробуем найти ветку $1 в $bitrix_home_dir"
-    for dir in $(find $bitrix_home_dir -maxdepth 3 -type d -name ".git")
-        do cd "${dir%/*}" || exit
-            current_branch_name=$(git symbolic-ref --short -q HEAD)
-            if [[ "$current_branch_name" == "$1" ]]; then
-                echo -e "Найдена директория: $PWD; Ветка: $current_branch_name;"
+    for dir in $(find $bitrix_home_dir -maxdepth 3 -type d -name ".git"); do
+        cd "${dir%/*}" || exit
+        current_branch_name=$(git symbolic-ref --short -q HEAD)
+        if [[ "$current_branch_name" == "$1" ]]; then
+            echo -e "Найдена директория: $PWD; Ветка: $current_branch_name;"
 
-                git_get_credential_helper
+            git_get_credential_helper
 
-                ## Проверяем на совпадение директории и конфига
-                current_remote_url=$(git_current_remote_url)
-                if [[ "$current_remote_url" != "$git_url" ]]; then
-                    echo -e "Внимание!"
-                    echo -e "Репозиторий в каталоге = $current_remote_url"
-                    echo -e "Репозиторий в настройках = $git_url"
-                    
-                    if ! git_check_branch "$current_branch_name"; then
-                        echo -e "Критическая ошибка! Ветка $current_branch_name не существует в $git_url"
-                        exit
-                    else
-                        echo -e "Ветка $current_branch_name существует в $git_url"
-                    fi
-                    echo -e "Переключаю репозиторий на $git_url"
-                    git remote set-url origin "$git_url"
+            ## Проверяем на совпадение директории и конфига
+            current_remote_url=$(git_current_remote_url)
+            if [[ "$current_remote_url" != "$git_url" ]]; then
+                echo -e "Внимание!"
+                echo -e "Репозиторий в каталоге = $current_remote_url"
+                echo -e "Репозиторий в настройках = $git_url"
+
+                if ! git_check_branch "$current_branch_name"; then
+                    echo -e "Критическая ошибка! Ветка $current_branch_name не существует в $git_url"
+                    exit
+                else
+                    echo -e "Ветка $current_branch_name существует в $git_url"
                 fi
-
-                ##  Устанавливаем настройки
-                git config --local user.name "server"
-                git config --local user.email "$git_user"
-
-                ## Аккуратная работа с мастер веткой.
-                if [[ $git_branch_master_name == "$1" ]]; then
-                    echo -e "Проверяем наличие изменений в мастер ветке $git_branch_master_name"
-                    
-                    if [[ $(git status --porcelain) ]]; then
-                        local git_new_branch_master="$git_branch_master_name-""$(date +%d%m%y-%H%I%S)"
-                        warning_text "Обнаружены изменения в мастер ветке. Будет создана новая ветка $git_new_branch_master."
-                        git checkout -b "$git_new_branch_master"
-                        git add .
-                        git commit -m "Master auto commit from server"
-                        git -c credential.helper="$HELPER" push -u origin "$git_new_branch_master"
-                        git checkout "$current_branch_name"
-                        warning_text "Не забудьте слить ветку $git_new_branch_master с $git_branch_master_name"
-                    else
-                        echo -e "Изменений в мастер ветке нет. Всё хорошо."
-                    fi
-                fi
-                ## https://stackoverflow.com/questions/17404316/the-following-untracked-working-tree-files-would-be-overwritten-by-merge-but-i
-                ## 1я стратегия, не сработает, если есть не отслеживаемые файлы
-                # git reset --hard
-                # git -c credential.helper="$HELPER" pull
-
-                ## 2я стратегия - чистим всё
-                git -c credential.helper="$HELPER" fetch --all
-                git reset --hard origin/"$current_branch_name"
-
-                ## 3я стратегия, лайтовее, не сделает ничего не не отслеживаемыми файлами
-                # git checkout -f donor-branch   # replace bothersome files with tracked versions
-                # git checkout receiving-branch  # tracked bothersome files disappear
-                # git merge donor-branch         # merge works
-
-                ## 3.1 Или так
-                # git fetch
-                # git checkout -f origin/mybranch   # replace bothersome files with tracked versions
-                # git checkout mybranch             # tracked bothersome files disappear
-                # git pull origin/mybranch          # pull works
-
-                ## Сбрасываем права
-                chown -R bitrix:bitrix "$PWD"
-                cd "$HOME" > /dev/null || exit
+                echo -e "Переключаю репозиторий на $git_url"
+                git remote set-url origin "$git_url"
             fi
-        done
+
+            ##  Устанавливаем настройки
+            git config --local user.name "server"
+            git config --local user.email "$git_user"
+
+            ## Аккуратная работа с мастер веткой.
+            if [[ $git_branch_master_name == "$1" ]]; then
+                echo -e "Проверяем наличие изменений в мастер ветке $git_branch_master_name"
+
+                if [[ $(git status --porcelain) ]]; then
+                    local git_new_branch_master="$git_branch_master_name-""$(date +%d%m%y-%H%I%S)"
+                    warning_text "Обнаружены изменения в мастер ветке. Будет создана новая ветка $git_new_branch_master."
+                    git checkout -b "$git_new_branch_master"
+                    git add .
+                    git commit -m "Master auto commit from server"
+                    git -c credential.helper="$HELPER" push -u origin "$git_new_branch_master"
+                    git checkout "$current_branch_name"
+                    warning_text "Не забудьте слить ветку $git_new_branch_master с $git_branch_master_name"
+                else
+                    echo -e "Изменений в мастер ветке нет. Всё хорошо."
+                fi
+            fi
+            ## https://stackoverflow.com/questions/17404316/the-following-untracked-working-tree-files-would-be-overwritten-by-merge-but-i
+            ## 1я стратегия, не сработает, если есть не отслеживаемые файлы
+            # git reset --hard
+            # git -c credential.helper="$HELPER" pull
+
+            ## 2я стратегия - чистим всё
+            git -c credential.helper="$HELPER" fetch --all
+            git reset --hard origin/"$current_branch_name"
+
+            ## 3я стратегия, лайтовее, не сделает ничего не не отслеживаемыми файлами
+            # git checkout -f donor-branch   # replace bothersome files with tracked versions
+            # git checkout receiving-branch  # tracked bothersome files disappear
+            # git merge donor-branch         # merge works
+
+            ## 3.1 Или так
+            # git fetch
+            # git checkout -f origin/mybranch   # replace bothersome files with tracked versions
+            # git checkout mybranch             # tracked bothersome files disappear
+            # git pull origin/mybranch          # pull works
+
+            ## Сбрасываем права
+            chown -R bitrix:bitrix "$PWD"
+            cd "$HOME" >/dev/null || exit
+        fi
+    done
     cd "$HOME" || exit
     wait
 }
 
 ## Название текущей локальной активной ветки
-git_current_local_branch(){
+git_current_local_branch() {
     git branch | awk '/\*/ { print $2; }'
 }
 
@@ -938,27 +1086,27 @@ git_init() {
             fi
         fi
     done
-    
+
     git_get_credential_helper
     git_branch_list
     until [[ "$git_new_branch" ]]; do
-            IFS= read -p "Название ветки: " -r git_new_branch
-            if [[ "$git_new_branch" == "$git_branch_master_name" ]]; then
-                echo -e "Сам инициализируй $git_new_branch ветку, это важно. Не ленись."
-                exit
+        IFS= read -p "Название ветки: " -r git_new_branch
+        if [[ "$git_new_branch" == "$git_branch_master_name" ]]; then
+            echo -e "Сам инициализируй $git_new_branch ветку, это важно. Не ленись."
+            exit
+        fi
+
+        if ! git_check_branch "$git_new_branch"; then
+            echo -e "Ветка $git_new_branch не существует"
+
+            until [[ "$git_new_branch_create" ]]; do
+                IFS= read -p "Создать новую ветку (от $git_branch_master_name), будет reset --hard? [y/N]: " -r git_new_branch_create
+            done
+
+            if [[ $git_new_branch_create != "y" ]]; then
+                git_new_branch=""
             fi
-
-            if ! git_check_branch "$git_new_branch"; then
-                echo -e "Ветка $git_new_branch не существует"
-
-                until [[ "$git_new_branch_create" ]]; do
-                    IFS= read -p "Создать новую ветку (от $git_branch_master_name), будет reset --hard? [y/N]: " -r git_new_branch_create
-                done
-
-                if [[ $git_new_branch_create != "y" ]]; then
-                    git_new_branch=""
-                fi
-            fi
+        fi
     done
 
     ## Перемещаем старый гит
@@ -996,12 +1144,12 @@ git_init() {
             echo -e "Ошибка при создании $git_new_branch ветки!"
             exit
         fi
-    else 
+    else
         ## Если существующая ветка
-        git checkout -b "$git_new_branch" 
+        git checkout -b "$git_new_branch"
         git -c credential.helper="$HELPER" fetch origin
         git branch "$git_new_branch" origin/"$git_new_branch"
-        git branch --set-upstream-to=origin/"$git_new_branch" "$git_new_branch" 
+        git branch --set-upstream-to=origin/"$git_new_branch" "$git_new_branch"
     fi
 
     chown -R bitrix:bitrix "$git_new_dir"
@@ -1021,14 +1169,14 @@ select_site_to_clone_one() {
     select_site_to_clone
 }
 
-## Проверить наличие cron задания 
+## Проверить наличие cron задания
 check_cloudflare_cron() {
     if ! test -f "$cloudflare_cronfile"; then
         warning_text "Cron задание для обновления $CLOUDFLARE_IP_RANGES_FILE_PATH отключено"
-    fi;
+    fi
 }
 
-## Удалить cron задание 
+## Удалить cron задание
 remove_cloudflare_cron() {
     if [ "$(check_cloudflare_cron)" != "" ]; then
         echo -e "Нечего удалять"
@@ -1038,18 +1186,25 @@ remove_cloudflare_cron() {
     fi
 }
 
-## Установить cron задание 
+## Установить cron задание
 set_cloudflare_cron() {
-    echo "$cloudflare_cronjob" > "$cloudflare_cronfile"
+    echo "$cloudflare_cronjob" >"$cloudflare_cronfile"
     echo -e "Задание добавлено: $cloudflare_cronjob"
     service crond restart
 }
 
-## Проверить наличие файла с настройками cloudflare для nginx
+## Проверить наличие файла с настройками set_real_ip_from cloudflare для nginx
 check_cloudflare() {
     if ! test -f "$CLOUDFLARE_IP_RANGES_FILE_PATH"; then
         warning_text "Файл $CLOUDFLARE_IP_RANGES_FILE_PATH отсуствует"
-    fi;
+    fi
+}
+
+## Проверить наличие файла с настройками блокировки прямого захода cloudflare для nginx
+check_cloudflare_direct_block() {
+    if ! test -f "$CLOUDFLARE_DIRECT_BLOCK_FILE_PATH"; then
+        warning_text "Файл $CLOUDFLARE_DIRECT_BLOCK_FILE_PATH отсуствует"
+    fi
 }
 
 ## Удалить файл с настройками cloudflare для nginx
@@ -1065,7 +1220,7 @@ remove_cloudflare() {
 ## Подстановка настоящего ip адреса, если сайт защищён cloudflare
 set_cloudflare() {
     # https://dev.1c-bitrix.ru/support/forum/forum32/topic76006/
-    
+
     CLOUDFLARE_IPSV4_REMOTE_FILE="https://www.cloudflare.com/ips-v4"
     CLOUDFLARE_IPSV6_REMOTE_FILE="https://www.cloudflare.com/ips-v6"
     CLOUDFLARE_IPSV4_LOCAL_FILE="/tmp/cloudflare-ips-v4"
@@ -1077,19 +1232,19 @@ set_cloudflare() {
     wget -q $CLOUDFLARE_IPSV6_REMOTE_FILE -O $CLOUDFLARE_IPSV6_LOCAL_FILE --no-check-certificate
 
     {
-        echo "# CloudFlare IP Ranges" 
+        echo "# CloudFlare IP Ranges"
         echo "# Generated at $(date) by $0"
         echo ""
-        echo "# IPs v4" 
-        awk '{ print "set_real_ip_from " $0 ";" }' $CLOUDFLARE_IPSV4_LOCAL_FILE 
-        echo "" 
+        echo "# IPs v4"
+        awk '{ print "set_real_ip_from " $0 ";" }' $CLOUDFLARE_IPSV4_LOCAL_FILE
+        echo ""
         echo "# IPs v6"
-        awk '{ print "set_real_ip_from " $0 ";" }' $CLOUDFLARE_IPSV6_LOCAL_FILE 
-        echo "" 
+        awk '{ print "set_real_ip_from " $0 ";" }' $CLOUDFLARE_IPSV6_LOCAL_FILE
+        echo ""
         echo "# Getting real ip from CF-Connecting-IP header"
-        echo "real_ip_header CF-Connecting-IP;" 
-        echo "" 
-    } > $CLOUDFLARE_IP_RANGES_FILE_PATH
+        echo "real_ip_header CF-Connecting-IP;"
+        echo ""
+    } >$CLOUDFLARE_IP_RANGES_FILE_PATH
 
     chown bitrix:bitrix $CLOUDFLARE_IP_RANGES_FILE_PATH
 
@@ -1119,10 +1274,10 @@ menu_bitrix() {
         echo -e "\t\t0. Выход"
 
         IFS= read -p "Пункт меню: " -r TARGET_SELECTION
-        case "$TARGET_SELECTION" in 
-            "1"|pull)  git_pull_one;;
-            0|z)  exit;;
-            *)    no_menu;;
+        case "$TARGET_SELECTION" in
+        "1" | pull) git_pull_one ;;
+        0 | z) exit ;;
+        *) no_menu ;;
         esac
     done
 }
@@ -1172,28 +1327,49 @@ menu() {
         echo -e "\t\t7. Cloudflare для nginx (определение ip адреса)"
         echo -e "\t\t8. Настройки dev.sh"
 
-        echo -e "\t\t9. Запустить bitrixenv"
+        echo -e "\t\t9. Переезд на другой сервер"
+        echo -e "\t\t10. Запустить bitrixenv"
         echo -e "\t\t0. Выход\n"
 
         IFS= read -p "Пункт меню: " -r TARGET_SELECTION
-        case "$TARGET_SELECTION" in 
-            "1"|pull) git_pull_one; wait;;
-            "2"|init) git_init_one; wait;;
-            "3"|site) create_site; wait;;
-            "4"|pwd) change_password_exist_user; wait;;
-            "5"|sync) select_site_to_clone_one; wait;;
-            "6"|webhook) set_webhook;;
-            
-            "7"|cloudflare) menu_cloudflare;;
-            "8"|settings) menu_settings;;
+        case "$TARGET_SELECTION" in
+        "1" | pull)
+            git_pull_one
+            wait
+            ;;
+        "2" | init)
+            git_init_one
+            wait
+            ;;
+        "3" | site)
+            create_site
+            wait
+            ;;
+        "4" | pwd)
+            change_password_exist_user
+            wait
+            ;;
+        "5" | sync)
+            select_site_to_clone_one
+            wait
+            ;;
+        "6" | webhook) set_webhook ;;
+        "7" | cloudflare) menu_cloudflare ;;
+        "8" | settings) menu_settings ;;
 
-            "9"|env) start_bitrixenv; exit;;
+        "9" | env)
+            run_remote
+            ;;
 
-            
-            0|z)  exit;;
-            *)    no_menu;;
+        "10" | env)
+            start_bitrixenv
+            exit
+            ;;
+
+        0 | z) exit ;;
+        *) no_menu ;;
         esac
-    done  
+    done
 }
 
 ## Меню с настройками
@@ -1211,16 +1387,29 @@ menu_settings() {
         echo -e "\t\t0. Назад\n"
 
         IFS= read -p "Пункт меню: " -r SETTINGS_SELECTION
-        case "$SETTINGS_SELECTION" in 
-            "1"|clear) clear_config; first_run; wait;;
-            "2"|install) update_self; wait;;
-            "3"|update) install_self; wait;;
-            "400"|dns)  check_dns_a_record_one; wait;;
-            
-            0|z)  return;;
-            *)    no_menu;;
+        case "$SETTINGS_SELECTION" in
+        "1" | clear)
+            clear_config
+            first_run
+            wait
+            ;;
+        "2" | install)
+            update_self
+            wait
+            ;;
+        "3" | update)
+            install_self
+            wait
+            ;;
+        "400" | dns)
+            check_dns_a_record_one
+            wait
+            ;;
+
+        0 | z) return ;;
+        *) no_menu ;;
         esac
-    done  
+    done
 }
 
 ## Меню с cloudflare
@@ -1230,6 +1419,7 @@ menu_cloudflare() {
         echo -e "Cloudflare для nginx (определение ip адреса)"
         check_cloudflare
         check_cloudflare_cron
+        check_cloudflare_direct_block
         line
         echo -e "Доступные действия:"
 
@@ -1245,41 +1435,64 @@ menu_cloudflare() {
         echo -e "\t\t0. Назад\n"
 
         IFS= read -p "Пункт меню: " -r CLOUDFLARE_SELECTION
-        case "$CLOUDFLARE_SELECTION" in 
-            "1"|cron) set_cloudflare_cron; wait;;
-            "2"|crondel) remove_cloudflare_cron; wait;;
-            "3"|set) set_cloudflare; wait;;
-            "4"|del) remove_cloudflare; wait;;
-            
-            0|z)  return;;
-            *)    no_menu;;
+        case "$CLOUDFLARE_SELECTION" in
+        "1" | cron)
+            set_cloudflare_cron
+            wait
+            ;;
+        "2" | crondel)
+            remove_cloudflare_cron
+            wait
+            ;;
+        "3" | set)
+            set_cloudflare
+            wait
+            ;;
+        "4" | del)
+            remove_cloudflare
+            wait
+            ;;
+
+        0 | z) return ;;
+        *) no_menu ;;
         esac
-    done  
+    done
 }
 
-## Проверка на первый запуск скрипта 
+## Проверка на первый запуск скрипта
 if load_config; then
-    
+
     ## Проверяем, всего ли хватает
     check_config
 
     ## Если запустили с флагами
-    while getopts "hcb:s:u:" flag
-    do
+    while getopts "hcb:s:u:" flag; do
         case "$flag" in
-            u) 
-                clone_site_path_from="/home/bitrix/www"
-                clone_site_path_to=${OPTARG};
-                console_site_clone;
-                exit
+        u)
+            clone_site_path_from="/home/bitrix/www"
+            clone_site_path_to=${OPTARG}
+            console_site_clone
+            exit
             ;;
-            b) branch=${OPTARG}; git_pull "$branch"; exit;;
-            s) free_limit=${OPTARG}; clear; check_size "$free_limit"; exit;;
-            c) 
-                if is_root; then set_cloudflare ; fi
-                exit
+        b)
+            branch=${OPTARG}
+            git_pull "$branch"
+            exit
             ;;
-            \?|h) usage; exit;;
+        s)
+            free_limit=${OPTARG}
+            clear
+            check_size "$free_limit"
+            exit
+            ;;
+        c)
+            if is_root; then set_cloudflare; fi
+            exit
+            ;;
+        \? | h)
+            usage
+            exit
+            ;;
         esac
     done
 
