@@ -851,7 +851,7 @@ run_remote() {
         ## Синхронизация файлов
         remote_dir_from="/home/bitrix/www/"
         remote_dir_to="/home/bitrix/www/"
-        sshpass -p $remote_password rsync -v -ae "ssh -p $remote_port" --delete --exclude .git --exclude /bitrix/.settings.php --exclude /bitrix/.isprod --exclude /bitrix/.settings_extra.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/html_pages --exclude bitrix/managed_cache --exclude bitrix/stack_cache --exclude local/logs --progress "$remote_dir_from" "$remote_user@$remote_host:$remote_dir_to"
+        sshpass -p $remote_password rsync -v -ae "ssh -p $remote_port" --delete --exclude /bitrix/.settings.php --exclude /bitrix/.settings_extra.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/html_pages --exclude bitrix/managed_cache --exclude bitrix/stack_cache --exclude local/logs --progress "$remote_dir_from" "$remote_user@$remote_host:$remote_dir_to"
         echo "Синхронизация файлов завершена"
 
         ## Загружаем текущие настройки mysql
