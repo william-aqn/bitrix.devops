@@ -755,17 +755,24 @@ select_menu() {
     fi
 }
 
+## Запустить команду на другом сервере
+remote_ssh_command() {
+    sshpass -p $remote_password ssh -tt -o StrictHostKeyChecking=no $remote_user@$remote_host -q $1
+}
+
+## Проверить доступность соединения другого сервера
 remote_server_reachable() {
-    status=$(sshpass -p $remote_password ssh -o StrictHostKeyChecking=no $remote_user@$remote_host -q "echo ok" 2>&1)
-    if [[ $status == ok ]]; then
+    status=$(remote_ssh_command "echo ok" 2>&1)
+    if [ $? -eq 0 ]; then
         true
     else
         false
     fi
 }
 
+## Проверить доступность подключения к mysql на другом сервере
 remote_mysql_reachable() {
-    status=$(sshpass -p $remote_password ssh -tt -o StrictHostKeyChecking=no $remote_user@$remote_host -q "mysql -u $remote_mysql_user -p$remote_mysql_password -e 'SHOW DATABASES;'" 2>&1)
+    status=$(remote_ssh_command "mysql -u $remote_mysql_user -p$remote_mysql_password -e 'SHOW DATABASES;'" 2>&1)
     # Check the connection status
     if [ $? -eq 0 ]; then
         true
@@ -774,6 +781,7 @@ remote_mysql_reachable() {
     fi
 }
 
+## Заполнение настроек другого сервера
 remote_first_run() {
     until [[ "$remote_status" == "ok" ]]; do
 
@@ -830,25 +838,50 @@ remote_first_run() {
     save_remote
 }
 
-# Переезд на другой сервер
+## Переезд на другой сервер
 run_remote() {
     load_remote
     remote_first_run
     until [[ "$remote_allow_start" ]]; do
-        IFS= read -p "Запустить синхронизацию? [y/N]: " -r remote_allow_start
+        IFS= read -p "Запустить синхронизацию файлов и mysql? [y/N]: " -r remote_allow_start
     done
     if [[ $remote_allow_start == "y" ]]; then
         remote_allow_start=""
+        remote_start_time=$(date +%s.%N)
+        ## Синхронизация файлов
         remote_dir_from="/home/bitrix/www/"
         remote_dir_to="/home/bitrix/www/"
         sshpass -p $remote_password rsync -v -ae "ssh -p $remote_port" --delete --exclude .git --exclude /bitrix/.settings.php --exclude /bitrix/.isprod --exclude /bitrix/.settings_extra.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/html_pages --exclude bitrix/managed_cache --exclude bitrix/stack_cache --exclude local/logs --progress "$remote_dir_from" "$remote_user@$remote_host:$remote_dir_to"
-        echo "Синхронизация файлов завершена, сейчас начнётся перенос mysql"
-        wait
-        
+        echo "Синхронизация файлов завершена"
+
+        ## Загружаем текущие настройки mysql
+        . "$mysql_root_config_file"
+        remote_mysql_db_from="sitemanager"
+        remote_mysql_db_to="sitemanager"
+
+        ## Метод 1, через mysqldump
+        remote_temp_db_file="/root/migration.sql"
+        remote_temp_db_file_gz="$remote_temp_db_file.gz"
+        echo "Создаём дамп базы данных"
+        mysqldump --verbose -u$user -p$password --socket=$socket $remote_mysql_db_from >$remote_temp_db_file
+        echo "Создаём дампа завершено, архивируем"
+        gzip --verbose --force $remote_temp_db_file
+        echo "Архивация завершена, отправляем архив на сервер"
+        sshpass -p $remote_password rsync -avze "ssh -p $remote_port" --progress $remote_temp_db_file_gz "$remote_user@$remote_host:$remote_temp_db_file_gz"
+        echo "Файл отправлен, запускаем разархивацию и импорт"
+        remote_ssh_command "gunzip -v -c $remote_temp_db_file_gz | mysql -u $remote_mysql_user -p$remote_mysql_password $remote_mysql_db_to"
+        rm -f "$remote_temp_db_file_gz"
+        echo "Импорт mysql базы $remote_mysql_db_to завершён"
+
+        ## TODO: Метод 2, через mysqldbcopy и ssh тоннель к сокету
+
+        ## Сколько затрачено времени
+        remote_end_time=$(date +%s.%N)
+        runtime=$(echo "$remote_end_time - $remote_start_time" | bc -l)
+        echo "Затрачено времени: $runtime секунд"
+        exit
     fi
 }
-# run_remote
-# exit
 
 ## Задаём настройки
 first_run() {
