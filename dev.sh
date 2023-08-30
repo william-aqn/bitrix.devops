@@ -331,7 +331,7 @@ sync_sites() {
         #rsync -av --delete --exclude .git --exclude /bitrix/.settings.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/managed_cache --exclude bitrix/stack_cache --progress "$1/" "$2" > /var/log/rsync.log
 
         echo -e "Начинаем синхронизацию [$1]->[$2]"
-        rsync -a --delete --exclude .git --exclude /bitrix/.settings.php --exclude /bitrix/.isprod --exclude /bitrix/.settings_extra.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/html_pages --exclude bitrix/managed_cache --exclude bitrix/stack_cache --progress "$1/" "$2"
+        rsync -a --delete --exclude .git --exclude /robots.txt --exclude /bitrix/.settings.php --exclude /bitrix/.isprod --exclude /bitrix/.settings_extra.php --exclude /bitrix/php_interface/dbconn.php --exclude bitrix/backup --exclude bitrix/cache --exclude bitrix/html_pages --exclude bitrix/managed_cache --exclude bitrix/stack_cache --progress "$1/" "$2"
         warning_text "Обязательно очищайте кэш в админке"
         wait
     else
