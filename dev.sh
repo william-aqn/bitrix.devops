@@ -575,7 +575,8 @@ create_user() {
         ## такой же id как у bitrix пользователя
         adduser "$1" -g600 -o -u600 -s /sbin/nologin -d /home/"$1"/
         usermod -aG $user_group "$1"
-        chown root:bitrix /home/"$1"/
+        mkdir /home/"$1"/www
+        chown -R root:bitrix /home/"$1"/
         chmod 750 /home/"$1"/
         set_user_random_password "$1"
         add_mount_point "$1"
