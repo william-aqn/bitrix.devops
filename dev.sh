@@ -758,7 +758,7 @@ select_menu() {
 
 ## Запустить команду на другом сервере
 remote_ssh_command() {
-    sshpass -p $remote_password ssh -tt -o StrictHostKeyChecking=no $remote_user@$remote_host -q $1
+    sshpass -p $remote_password ssh -p $remote_port -tt -o StrictHostKeyChecking=no $remote_user@$remote_host -q $1
 }
 
 ## Проверить доступность соединения другого сервера
