@@ -865,7 +865,7 @@ run_remote() {
         remote_temp_db_file_gz="$remote_temp_db_file.gz"
         echo "Создаём дамп базы данных"
         mysqldump --verbose -u$user -p$password --socket=$socket $remote_mysql_db_from >$remote_temp_db_file
-        echo "Создаём дампа завершено, архивируем"
+        echo "Создание дампа завершено, архивируем"
         gzip --verbose --force $remote_temp_db_file
         echo "Архивация завершена, отправляем архив на сервер"
         sshpass -p $remote_password rsync -avze "ssh -p $remote_port" --progress $remote_temp_db_file_gz "$remote_user@$remote_host:$remote_temp_db_file_gz"
