@@ -614,7 +614,7 @@ install_self() {
 
 ## Обновим сами себя и перезапустим
 update_self() {
-    wget -O "$global_file" "$update_url" && chmod +x "$global_file" && bitrix:bitrix "$global_file"
+    wget -O "$global_file" "$update_url" && chmod +x "$global_file" && chown bitrix:bitrix "$global_file"
     echo -e "$global_file - обновлён"
     wait
     exec $global_file
