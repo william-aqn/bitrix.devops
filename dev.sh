@@ -876,12 +876,14 @@ run_remote() {
         remote_temp_db_file_gz="$remote_temp_db_file.gz"
         echo "Создаём дамп базы данных"
         mysqldump --verbose -u$user -p$password --socket=$socket $remote_mysql_db_from >$remote_temp_db_file
-        echo "Создание дампа завершено, архивируем"
+        echo "Создание дампа завершено, заменяем кодировку"
+        sed -i 's/CHARSET=utf8/CHARSET=utf8mb4/g; s/utf8_unicode_ci/utf8mb4_0900_ai_ci/g' $remote_temp_db_file
+        echo "Замена кодировки завершена, архивируем"
         gzip --verbose --force $remote_temp_db_file
         echo "Архивация завершена, отправляем архив на сервер"
         sshpass -p $remote_password rsync -avze "ssh -p $remote_port" --progress $remote_temp_db_file_gz "$remote_user@$remote_host:$remote_temp_db_file_gz"
         echo "Файл отправлен, запускаем разархивацию и импорт"
-        remote_ssh_command "gunzip -v -c $remote_temp_db_file_gz | mysql -u $remote_mysql_user -p$remote_mysql_password $remote_mysql_db_to"
+        remote_ssh_command "gunzip -v -c $remote_temp_db_file_gz | mysql --default-character-set=utf8mb4 -u $remote_mysql_user -p$remote_mysql_password $remote_mysql_db_to"
         rm -f "$remote_temp_db_file_gz"
         echo "Импорт mysql базы $remote_mysql_db_to завершён"
 
