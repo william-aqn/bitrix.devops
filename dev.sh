@@ -1160,6 +1160,7 @@ git_init() {
     cd "$git_new_dir" || exit
 
     ##  Устанавливаем настройки
+    git config --global --add safe.directory "$git_new_dir"
     git config --global user.name "server"
     git config --global user.email "$git_user"
     git config --global push.default simple
