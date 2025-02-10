@@ -467,6 +467,8 @@ check_openssh_chroot() {
         echo "Subsystem sftp internal-sftp"
         echo "Match Group $user_group"
         echo "ChrootDirectory /home/%u"
+        echo "Match User root"
+        echo "ChrootDirectory none"
         line
     fi
 }
