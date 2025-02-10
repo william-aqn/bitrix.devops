@@ -877,7 +877,7 @@ run_remote() {
         echo "Создаём дамп базы данных"
         mysqldump --verbose -u$user -p$password --socket=$socket $remote_mysql_db_from >$remote_temp_db_file
         echo "Создание дампа завершено, заменяем кодировку"
-        sed -i 's/CHARSET=utf8/CHARSET=utf8mb4/g; s/utf8_unicode_ci/utf8mb4_0900_ai_ci/g' $remote_temp_db_file
+        sed -i 's/CHARSET=utf8/CHARSET=utf8mb4/g; s/utf8_unicode_ci/utf8mb4_0900_ai_ci/g; s/utf8_bin/utf8mb4_bin/g' $remote_temp_db_file
         echo "Замена кодировки завершена, архивируем"
         gzip --verbose --force $remote_temp_db_file
         echo "Архивация завершена, отправляем архив на сервер"
