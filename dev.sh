@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## Проверено на bitrixenv 7.5.2
+## Проверено на bitrixenv 9.0.4
 version=1.3.2
 
 ## Группа пользователей для разработчиков
@@ -320,7 +320,7 @@ clone_db_mysql() {
 
         # 2. Копируем структуру и данные ИЗ $1 В $2
         echo "Копируем структуру и данные..."
-        mysqldump -u root -p"$password" --routines --triggers --events "$1" | mysql -u root -p"$password" "$2"
+        mysqldump -u root -p"$password" --socket=$socket "$1" | mysql -u root -p"$password" --socket=$socket "$2"
 
         # TODO: Не копировать grants
     else
