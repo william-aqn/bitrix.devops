@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Проверено на bitrixenv 7.5.2
-version=1.3.1
+version=1.3.2
 
 ## Группа пользователей для разработчиков
 user_group=dev-group
@@ -80,7 +80,7 @@ install_bitrixenv() {
     echo "Bitrixenv не обнаружен, устанавливаем..."
     yum clean all && yum -y update
     yum install -y wget
-    wget -O bitrix-env.sh https://repo.bitrix.info/yum/bitrix-env.sh && chmod +x bitrix-env.sh && ./bitrix-env.sh
+    wget -O bitrix-env-9.sh https://repo.bitrix.info/dnf/bitrix-env-9.sh && chmod +x bitrix-env-9.sh && ./bitrix-env-9.sh
     exit
 }
 
