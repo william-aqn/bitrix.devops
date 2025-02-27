@@ -309,18 +309,18 @@ clone_db_mysql() {
         #mysqldbcopy --force --source=root:"$password"@localhost:0:"$socket" --destination=root:"$password"@localhost:0:"$socket" "$1":"$2" > /var/log/mysqldbcopy.log
 
         echo -e "Начинаем копировать БД $1 -> $2 [root:$password@localhost]"
-        # mysqldbcopy --force --source=root:"$password"@localhost:0:"$socket" --destination=root:"$password"@localhost:0:"$socket" "$1":"$2"
+        mysqldbcopy --force --source=root:"$password"@localhost:0:"$socket" --destination=root:"$password"@localhost:0:"$socket" "$1":"$2"
 
         # 1. Очищаем все таблицы в целевой базе, но НЕ удаляем их
-        echo "Очищаем данные в таблицах БД $2..."
-        tables=$(mysql -u root -p"$password" -N -B -e "SELECT table_name FROM information_schema.tables WHERE table_schema = '$2';")
-        for table in $tables; do
-            mysql -u root -p"$password" -e "SET FOREIGN_KEY_CHECKS=0; TRUNCATE TABLE $2.$table; SET FOREIGN_KEY_CHECKS=1;"
-        done
+        #echo "Очищаем данные в таблицах БД $2..."
+        #tables=$(mysql -u root -p"$password" -N -B -e "SELECT table_name FROM information_schema.tables WHERE table_schema = '$2';")
+        #for table in $tables; do
+        #    mysql -u root -p"$password" -e "SET FOREIGN_KEY_CHECKS=0; TRUNCATE TABLE $2.$table; SET FOREIGN_KEY_CHECKS=1;"
+        #done
 
         # 2. Копируем структуру и данные ИЗ $1 В $2
-        echo "Копируем структуру и данные..."
-        mysqldump -u root -p"$password" --socket=$socket "$1" | mysql -u root -p"$password" --socket=$socket "$2"
+        #echo "Копируем структуру и данные..."
+        #mysqldump -u root -p"$password" --socket=$socket "$1" | mysql -u root -p"$password" --socket=$socket "$2"
 
         # TODO: Не копировать grants
     else
